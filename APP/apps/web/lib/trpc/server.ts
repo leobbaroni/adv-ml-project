@@ -4,12 +4,16 @@ import { router, publicProcedure } from './trpc';
 import { propertyRouter } from './routers/property';
 import { icalSourceRouter } from './routers/ical-source';
 import { icalRouter } from './routers/ical';
+import { notificationRouter } from './routers/notification';
+import { overlapRouter } from './routers/overlap';
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, ts: new Date().toISOString() })),
   property: propertyRouter,
   icalSource: icalSourceRouter,
   ical: icalRouter,
+  notification: notificationRouter,
+  overlap: overlapRouter,
 });
 
 export type AppRouter = typeof appRouter;

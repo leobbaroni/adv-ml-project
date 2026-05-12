@@ -1,6 +1,7 @@
 // iCal polling job. Phase 1: fetch one source, parse, upsert reservations.
 // Phase 2: overlap detection and auto-resolution.
 
+import { resolveOverlap } from '@app/ai';
 import { prisma } from '@app/db';
 import { detectOverlaps, fetchICal, parseICal } from '@app/ical';
 import type { PollIcalJob } from '@app/shared';
@@ -152,14 +153,61 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
         },
       });
     } else if (overlap.kind === 'AMBIGUOUS') {
-      await prisma.overlapDecision.create({
+      let action: 'AI_PROPOSED' | 'KEEP' = 'AI_PROPOSED';
+      let aiRationale = 'AI unavailable; manual review needed.';
+
+      try {
+        const resolution = await resolveOverlap({
+          events: [
+            {
+              id: resA.id,
+              summary: resA.summary,
+              startDate: resA.startDate,
+              endDate: resA.endDate,
+              sourceLabel: resA.source.label,
+            },
+            {
+              id: resB.id,
+              summary: resB.summary,
+              startDate: resB.startDate,
+              endDate: resB.endDate,
+              sourceLabel: resB.source.label,
+            },
+          ],
+        });
+
+        if (resolution.action === 'KEEP_BOTH') {
+          action = 'KEEP';
+          aiRationale = resolution.rationale;
+        } else if (resolution.action === 'SUPPRESS') {
+          action = 'AI_PROPOSED';
+          aiRationale = resolution.rationale;
+        }
+        // NEEDS_HUMAN falls through to the default AI_PROPOSED + fallback rationale
+      } catch (err) {
+        logger.warn(
+          { sourceId, propertyId: source.propertyId, error: err },
+          '[poll-ical] AI overlap resolution failed, falling back to manual review',
+        );
+      }
+
+      const decision = await prisma.overlapDecision.create({
         data: {
           propertyId: source.propertyId,
           reservationIds: [resA.id, resB.id],
-          action: 'AI_PROPOSED',
-          createdByAi: false,
+          action,
+          createdByAi: true,
           acceptedByUser: false,
-          aiRationale: 'Pending manual review — ambiguous overlap detected.',
+          aiRationale,
+        },
+      });
+
+      await prisma.notification.create({
+        data: {
+          kind: 'OVERLAP',
+          severity: 'WARNING',
+          propertyId: source.propertyId,
+          payload: { overlapDecisionId: decision.id, reservationIds: [resA.id, resB.id] },
         },
       });
     }

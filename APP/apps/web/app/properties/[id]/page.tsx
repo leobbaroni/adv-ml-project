@@ -16,6 +16,7 @@ import { trpc } from '@/lib/trpc/react';
 import type { AppRouter } from '@/lib/trpc/server';
 import { CalendarView } from '@/components/CalendarView';
 import { PendingOverlaps } from '@/components/PendingOverlaps';
+import { AuditLog } from '@/components/AuditLog';
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type PropertyFromQuery = RouterOutputs['property']['byId'];
@@ -106,8 +107,14 @@ export default function PropertyDetailPage() {
         <PendingOverlaps
           overlaps={overlaps.data ?? []}
           reservations={calendar.data ?? []}
+          propertyId={id}
           loading={overlaps.isLoading}
         />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tightish mb-3">Audit log</h2>
+        <AuditLog propertyId={id} />
       </section>
     </Shell>
   );

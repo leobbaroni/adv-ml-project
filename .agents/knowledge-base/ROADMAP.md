@@ -7,7 +7,7 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 | 0 | Scaffold (monorepo, Docker, empty Next.js boots) | DONE |
 | 1 | Properties CRUD + iCal sources UI + manual "fetch now" | DONE |
 | 2 | Merged calendar view + deterministic overlap detection (R1, R2, R3) | DONE |
-| 3 | AI overlap resolver + audit log + reversibility | TODO |
+| 3 | AI overlap resolver + audit log + reversibility | DONE |
 | 4 | Printable schedule table (window picker, red overlaps, grey "Next") | TODO |
 | 5 | Check-in forms: web edit + magic-link guest page + PDF render | TODO |
 | 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | TODO |

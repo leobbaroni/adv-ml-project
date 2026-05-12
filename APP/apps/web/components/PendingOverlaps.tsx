@@ -1,7 +1,9 @@
 'use client';
 
+import { Check, RotateCcw } from 'lucide-react';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@/lib/trpc/server';
+import { trpc } from '@/lib/trpc/react';
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type Overlap = RouterOutputs['ical']['pendingOverlapsByProperty'][number];
@@ -10,10 +12,29 @@ type Reservation = RouterOutputs['ical']['calendarByProperty'][number];
 interface PendingOverlapsProps {
   overlaps: Overlap[];
   reservations: Reservation[];
+  propertyId: string;
   loading?: boolean;
 }
 
-export function PendingOverlaps({ overlaps, reservations, loading }: PendingOverlapsProps) {
+export function PendingOverlaps({ overlaps, reservations, propertyId, loading }: PendingOverlapsProps) {
+  const utils = trpc.useUtils();
+
+  const accept = trpc.overlap.accept.useMutation({
+    onSuccess: () => {
+      void utils.ical.pendingOverlapsByProperty.invalidate({ propertyId });
+      void utils.overlap.history.invalidate({ propertyId });
+      void utils.ical.calendarByProperty.invalidate({ propertyId });
+    },
+  });
+
+  const revert = trpc.overlap.revert.useMutation({
+    onSuccess: () => {
+      void utils.ical.pendingOverlapsByProperty.invalidate({ propertyId });
+      void utils.overlap.history.invalidate({ propertyId });
+      void utils.ical.calendarByProperty.invalidate({ propertyId });
+    },
+  });
+
   if (loading) {
     return <p className="text-fg-muted text-sm">Loading overlaps…</p>;
   }
@@ -35,6 +56,9 @@ export function PendingOverlaps({ overlaps, reservations, loading }: PendingOver
           .map((id) => resMap.get(id))
           .filter(Boolean) as Reservation[];
 
+        const isAccepting = accept.isPending && accept.variables?.decisionId === o.id;
+        const isReverting = revert.isPending && revert.variables?.decisionId === o.id;
+
         return (
           <div key={o.id} className="surface p-4">
             <div className="flex items-start justify-between gap-4">
@@ -52,9 +76,26 @@ export function PendingOverlaps({ overlaps, reservations, loading }: PendingOver
                   <p className="text-xs text-fg-muted mt-1 italic">“{o.aiRationale}”</p>
                 )}
               </div>
-              <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full border border-warn/30 bg-warn/10 text-warn text-[10px] font-medium tracking-wider">
-                Needs review
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => accept.mutate({ decisionId: o.id })}
+                  disabled={isAccepting || isReverting}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn border border-ok/40 text-ok hover:bg-ok/10 disabled:opacity-60 transition-colors text-xs font-medium"
+                >
+                  <Check size={14} />
+                  {isAccepting ? 'Accepting…' : 'Accept'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => revert.mutate({ decisionId: o.id })}
+                  disabled={isAccepting || isReverting}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors text-xs font-medium"
+                >
+                  <RotateCcw size={14} />
+                  {isReverting ? 'Reverting…' : 'Revert'}
+                </button>
+              </div>
             </div>
 
             {involved.length > 0 && (

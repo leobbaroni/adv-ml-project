@@ -3,27 +3,6 @@ import Link from 'next/link';
 export default function LandingPage() {
   return (
     <main className="min-h-screen flex flex-col">
-      <header className="px-6 md:px-12 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div
-            aria-hidden
-            className="w-7 h-7 rounded-md bg-gradient-to-br from-accent to-amber-700 shadow-[0_0_24px_-4px_rgba(245,158,11,0.45)]"
-          />
-          <span className="font-semibold tracking-tightish">Concierge</span>
-        </div>
-        <nav className="text-sm text-fg-muted flex gap-6">
-          <Link href="/properties" className="hover:text-fg transition-colors">
-            Properties
-          </Link>
-          <Link href="/schedule" className="hover:text-fg transition-colors">
-            Schedule
-          </Link>
-          <Link href="/orders" className="hover:text-fg transition-colors">
-            Orders
-          </Link>
-        </nav>
-      </header>
-
       <section className="flex-1 px-6 md:px-12 py-16 md:py-24 grid md:grid-cols-2 gap-12 items-center">
         <div>
           <h1 className="text-5xl md:text-6xl font-semibold tracking-tightish leading-[1.05]">
