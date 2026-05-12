@@ -2,20 +2,37 @@
 
 ## Before You Start
 1. Read `.agents/rules/RULE.md` — hard behavioral constraints (simplicity first, surgical changes).
-2. Read `.agents/knowledge-base/PRD.md` — project requirements and evaluation criteria.
+2. Read `.agents/rules/coding-style.md` — project-wide coding conventions.
+3. Read `.agents/knowledge-base/PRD.md` — project requirements and evaluation criteria.
+4. Read `.agents/knowledge-base/ARCHITECTURE.md` — current system topology.
+5. Read `.agents/knowledge-base/ROADMAP.md` — current phase and what's next.
 
 ## Project Context
 - **Course:** 2758-T4 Advanced Topics in ML (Nova SBE). Student project, not production.
 - **Goal:** AI-driven startup prototype (business plan + full-stack app with UI).
+- **Product:** Concierge — AI channel manager for short-term rental hosts. Merges iCal feeds, resolves overlaps with AI, runs from a Telegram chat. See `README.md`.
 
 ## Repo Layout
-- `APP/` — Application code goes here. Empty by design; scaffold inside it.
-- `.agents/` — Agent rules and knowledge base. Do not modify unless asked.
-- Root — Keep clean. Use for repo-level config only (`.gitignore`, env files, etc.).
+- `APP/` — pnpm monorepo (apps/web, apps/worker, packages/*). See `README.md` for the full tree.
+- `.agents/` — Rules, knowledge base, and the 5-agent fleet. Do not modify unless asked.
+- Root — `docker-compose.yml`, `.env.example`, `README.md`, plus this file.
 
-## Tech Stack
-- **Not yet chosen.** The PRD suggests Firebase, Streamlit, or Project IDX.
-- Confirm the chosen stack with the user or by reading the PRD before adding framework boilerplate.
+## Tech Stack (frozen for v1)
+- **Web**: Next.js 15 (App Router) + tRPC + Tailwind + shadcn/ui + Framer Motion + R3F
+- **Worker**: Node + BullMQ (Redis) + grammY (Telegram long-polling)
+- **DB**: Postgres 16 + Prisma
+- **AI runtime**: OpenAI-compatible client → OpenCode Zen "big-pickle" (swappable via env)
+- **Tooling**: pnpm + Turbo
+
+## Agent Fleet
+Five specialized opencode sub-agents are defined in `.agents/agents/`. Route via the orchestrator:
+- `orchestrator` (Kimi K2.6 / GLM 5.1) — default entry point, plans + delegates
+- `ui-designer` (Gemini 3.1 Pro Preview) — all visual, motion, 3D work
+- `normal-coder` (Kimi K2.6) — ~90% of implementation
+- `hard-coder` (GPT-5.5 / opencode-zen) — escalation only for gnarly bugs
+- `light-tasks` (free / big-pickle) — docs, configs, boilerplate
+
+Full routing rules in `.agents/agents/orchestrator.md`.
 
 ## Critical Rules
 
@@ -31,8 +48,9 @@
 - After completing features (large or small), always run lint, type check, and build commands to verify code quality.
 
 ### Database Schema Changes
-- Whenever you make changes to the database schema, ALWAYS run the drizzle generate and migrate commands.
-- NEVER run drizzle push!
+- Schema lives at `APP/packages/db/prisma/schema.prisma`.
+- Whenever you change it, run `pnpm db:generate` and `pnpm db:migrate` (named migration).
+- NEVER run `prisma db push` — we want a real migration history.
 
 ### Testing
 - Use any testing tools, libraries, MCP tools, skills, etc. available to test your changes.

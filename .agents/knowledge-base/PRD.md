@@ -1,5 +1,4 @@
 # 2758-T4 Advanced Topics in ML: Project Guide
-**Dr. Qiwei Han** | Nova SBE | Masters in Business Analytics
 
 ---
 
@@ -20,7 +19,7 @@
 
 ### 2. Full-Stack Prototype
 * Working UI (Frontend) and AI Backend.
-* Use platforms like Firebase, Streamlit, or Project IDX (no command-line only).
+* No command-line only.
 * Demonstrate step-by-step execution from prompting to integration.
 
 ---

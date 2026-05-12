@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+dist
+build
+out
+*.tsbuildinfo
+.turbo
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local seed data (contains real iCal tokens — never commit)
+APP/packages/db/seed.local.ts
+APP/packages/db/src/seed.local.ts
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# Coverage / test artifacts
+coverage
+playwright-report
+test-results
+
+# PDF outputs (generated at runtime)
+APP/apps/web/.pdf-cache

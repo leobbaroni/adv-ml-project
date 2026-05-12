@@ -1,0 +1,231 @@
+// Prisma schema for the Real Estate Agent project.
+// Authoritative spec: ../../../../.agents/knowledge-base/DATA-MODEL.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------
+// Enums
+// --------------------------------------------------------------------
+
+enum ICalLabel {
+  AIRBNB
+  BOOKING
+  VRBO
+  INTERHOME
+  OTHER
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  BLOCKED
+  SUPPRESSED
+}
+
+enum SuppressionReason {
+  DUPLICATE
+  AIRBNB_SAME_DAY_BLOCK
+  AI_RESOLVED
+  MANUAL
+}
+
+enum OverlapAction {
+  DROP_DUPLICATE
+  SUPPRESS_BLOCK
+  AI_PROPOSED
+  KEEP
+  MANUAL_OVERRIDE
+}
+
+enum FilledVia {
+  WEB
+  CHAT
+  GUEST_LINK
+  MANUAL
+}
+
+enum ShoppingStatus {
+  PROPOSED
+  ORDERED
+}
+
+enum ShoppingSource {
+  CHAT
+  WEB
+}
+
+enum NotificationKind {
+  OVERLAP
+  CHAT_REQUEST
+  ORDER_UPDATE
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum NoteOrigin {
+  WEB
+  CHAT
+}
+
+enum ChatDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// --------------------------------------------------------------------
+// Models
+// --------------------------------------------------------------------
+
+model Property {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  address       String
+  city          String
+  country       String
+  ownerName     String?
+  ownerContact  String?
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  icalSources   ICalSource[]
+  reservations  Reservation[]
+  shoppingItems ShoppingItem[]
+  notes_        PropertyNote[]
+  overlaps      OverlapDecision[]
+  notifications Notification[]
+}
+
+model ICalSource {
+  id             String     @id @default(cuid())
+  property       Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  label          ICalLabel
+  url            String     @db.Text
+  active         Boolean    @default(true)
+  lastFetchedAt  DateTime?
+  lastEtag       String?
+  lastError      String?    @db.Text
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  reservations   Reservation[]
+
+  @@index([propertyId])
+}
+
+model Reservation {
+  id                String              @id @default(cuid())
+  property          Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId        String
+  source            ICalSource          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId          String
+  externalUid       String
+  summary           String
+  startDate         DateTime            @db.Date
+  endDate           DateTime            @db.Date
+  status            ReservationStatus   @default(CONFIRMED)
+  suppressionReason SuppressionReason?
+  lastSeenAt        DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  checkInForm       CheckInForm?
+
+  @@unique([sourceId, externalUid])
+  @@index([propertyId, startDate])
+  @@index([propertyId, status])
+}
+
+model OverlapDecision {
+  id              String        @id @default(cuid())
+  property        Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId      String
+  reservationIds  String[]
+  action          OverlapAction
+  aiRationale     String?       @db.Text
+  createdByAi     Boolean       @default(false)
+  acceptedByUser  Boolean       @default(false)
+  revertedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([propertyId, createdAt])
+}
+
+model CheckInForm {
+  id                  String       @id @default(cuid())
+  reservation         Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservationId       String       @unique
+  fullName            String?
+  country             String?
+  citizenId           String?
+  dob                 DateTime?    @db.Date
+  filledVia           FilledVia?
+  guestLinkToken      String?      @unique
+  guestLinkExpiresAt  DateTime?
+  submittedAt         DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model ShoppingItem {
+  id          String         @id @default(cuid())
+  property    Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  name        String
+  qty         Int            @default(1)
+  unitPrice   Decimal?       @db.Decimal(10, 2)
+  ikeaUrl     String?        @db.Text
+  status      ShoppingStatus @default(PROPOSED)
+  source      ShoppingSource
+  createdAt   DateTime       @default(now())
+
+  @@index([propertyId, status])
+}
+
+model Notification {
+  id          String                @id @default(cuid())
+  kind        NotificationKind
+  severity    NotificationSeverity
+  property    Property?             @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId  String?
+  payload     Json
+  readAt      DateTime?
+  createdAt   DateTime              @default(now())
+
+  @@index([readAt, createdAt])
+}
+
+model PropertyNote {
+  id          String     @id @default(cuid())
+  property    Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  body        String     @db.Text
+  done        Boolean    @default(false)
+  createdVia  NoteOrigin
+  createdAt   DateTime   @default(now())
+
+  @@index([propertyId, done])
+}
+
+model ChatMessage {
+  id                String         @id @default(cuid())
+  direction         ChatDirection
+  telegramUserId    String
+  text              String         @db.Text
+  aiAction          String?
+  relatedEntityId   String?
+  createdAt         DateTime       @default(now())
+
+  @@index([telegramUserId, createdAt])
+}
