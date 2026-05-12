@@ -50,7 +50,7 @@ Open <http://localhost:3000>.
 
 ## Phase status
 
-See `.agents/knowledge-base/ROADMAP.md`. Currently: **Phase 0 — scaffold complete**.
+See `.agents/knowledge-base/ROADMAP.md`. Currently: **Phase 1 — Properties CRUD + iCal sources + manual "Fetch now"**.
 
 ---
 

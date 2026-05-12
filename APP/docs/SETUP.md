@@ -52,3 +52,16 @@ Run `pnpm db:generate` after install completes. Prisma generates into `node_modu
 
 **Telegram bot not responding**
 Check `pnpm infra:logs` and the worker terminal. Verify `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ADMIN_USER_ID` are set. Message `@userinfobot` to get your numeric ID.
+
+## Phase 1 — how the pieces fit
+
+After `pnpm dev` is running:
+
+1. Open <http://localhost:3000/properties>. The seed data shows Triplex + Nanoush with their iCal sources.
+2. Click a property to see its detail page.
+3. Click **Fetch now** on any iCal source. The web app enqueues a `poll-ical` job on the BullMQ queue (Redis). The worker picks it up, fetches the URL (10 s timeout, ETag-aware), parses with `node-ical`, and upserts `Reservation` rows.
+4. After ~1–2 s, refresh the page — `lastFetchedAt` updates and reservations appear in the "Recent reservations" table.
+
+Diagnose a failed fetch:
+- `lastError` on the source card shows the underlying error (`http-404`, `TimeoutError`, etc.).
+- Worker logs structured JSON via `pino` — `pnpm --filter @app/worker dev` shows them in pretty format.

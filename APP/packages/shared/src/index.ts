@@ -2,6 +2,21 @@
 
 import { z } from 'zod';
 
+// --- BullMQ job contract ---
+// Single queue, job-name routing. Both web (producer) and worker (consumer)
+// must import these constants — never hard-code the strings.
+export const QUEUE_NAME = 'realestate';
+
+export const JobName = {
+  POLL_ICAL: 'poll-ical',
+} as const;
+export type JobName = (typeof JobName)[keyof typeof JobName];
+
+export const PollIcalJobSchema = z.object({
+  sourceId: z.string().min(1),
+});
+export type PollIcalJob = z.infer<typeof PollIcalJobSchema>;
+
 // --- Property ---
 export const PropertyCreateSchema = z.object({
   name: z.string().min(1).max(120),

@@ -1,18 +1,15 @@
-// Minimal tRPC server stub. Real routers land in phase 1.
-// This exists so the import path is stable from day one.
+// tRPC root router. Add new sub-routers here.
 
-import { initTRPC } from '@trpc/server';
-import superjson from 'superjson';
-
-const t = initTRPC.create({
-  transformer: superjson,
-});
-
-export const router = t.router;
-export const publicProcedure = t.procedure;
+import { router, publicProcedure } from './trpc';
+import { propertyRouter } from './routers/property';
+import { icalSourceRouter } from './routers/ical-source';
+import { icalRouter } from './routers/ical';
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, ts: new Date().toISOString() })),
+  property: propertyRouter,
+  icalSource: icalSourceRouter,
+  ical: icalRouter,
 });
 
 export type AppRouter = typeof appRouter;
