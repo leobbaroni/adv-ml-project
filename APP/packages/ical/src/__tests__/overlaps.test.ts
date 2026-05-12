@@ -15,6 +15,7 @@ function makeEvent(
   start: Date,
   end: Date,
   summary = '',
+  status: 'CONFIRMED' | 'BLOCKED' = 'CONFIRMED',
 ): SourcedEvent {
   return {
     externalUid: uid,
@@ -23,6 +24,7 @@ function makeEvent(
     endDate: end,
     sourceId,
     sourceLabel: sourceId,
+    status,
   };
 }
 
@@ -67,5 +69,57 @@ describe('detectOverlaps (R1)', () => {
 
   it('returns no overlaps for an empty input', () => {
     expect(detectOverlaps([])).toEqual([]);
+  });
+});
+
+describe('detectOverlaps (R2)', () => {
+  it('flags an Airbnb 1-day BLOCKED event overlapping a CONFIRMED event as AIRBNB_SAME_DAY_BLOCK', () => {
+    const blocked = makeEvent('airbnb-1', 'block@airbnb.com', utc(2025, 12, 15), utc(2025, 12, 16), 'Airbnb (Not available)', 'BLOCKED');
+    const confirmed = makeEvent('vrbo-1', 'res@vrbo.com', utc(2025, 12, 10), utc(2025, 12, 20), 'Reserved');
+    const overlaps = detectOverlaps([blocked, confirmed]);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('AIRBNB_SAME_DAY_BLOCK');
+  });
+
+  it('does not flag R2 when the blocked event is multi-day', () => {
+    const blocked = makeEvent('airbnb-1', 'block@airbnb.com', utc(2025, 12, 15), utc(2025, 12, 18), 'Not available', 'BLOCKED');
+    const confirmed = makeEvent('vrbo-1', 'res@vrbo.com', utc(2025, 12, 10), utc(2025, 12, 20), 'Reserved');
+    const overlaps = detectOverlaps([blocked, confirmed]);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('AMBIGUOUS');
+  });
+
+  it('does not flag R2 when the blocked event is not from Airbnb', () => {
+    const blocked = makeEvent('vrbo-1', 'block@vrbo.com', utc(2025, 12, 15), utc(2025, 12, 16), 'Not available', 'BLOCKED');
+    const confirmed = makeEvent('airbnb-1', 'res@airbnb.com', utc(2025, 12, 10), utc(2025, 12, 20), 'Reserved');
+    const overlaps = detectOverlaps([blocked, confirmed]);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('AMBIGUOUS');
+  });
+
+  it('does not flag R2 when both events are BLOCKED', () => {
+    const blockedAirbnb = makeEvent('airbnb-1', 'block@airbnb.com', utc(2025, 12, 15), utc(2025, 12, 16), 'Not available', 'BLOCKED');
+    const blockedVrbo = makeEvent('vrbo-1', 'block@vrbo.com', utc(2025, 12, 10), utc(2025, 12, 20), 'Not available', 'BLOCKED');
+    const overlaps = detectOverlaps([blockedAirbnb, blockedVrbo]);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('AMBIGUOUS');
+  });
+});
+
+describe('detectOverlaps (R3)', () => {
+  it('does not flag back-to-back events as overlaps', () => {
+    const a = makeEvent('airbnb-1', 'a@airbnb.com', utc(2025, 12, 15), utc(2025, 12, 20));
+    const b = makeEvent('vrbo-1', 'b@vrbo.com', utc(2025, 12, 20), utc(2025, 12, 25));
+    expect(detectOverlaps([a, b])).toEqual([]);
+  });
+});
+
+describe('detectOverlaps (ambiguous)', () => {
+  it('flags partial overlaps as AMBIGUOUS', () => {
+    const a = makeEvent('airbnb-1', 'a@airbnb.com', utc(2025, 12, 15), utc(2025, 12, 20));
+    const b = makeEvent('vrbo-1', 'b@vrbo.com', utc(2025, 12, 18), utc(2025, 12, 25));
+    const overlaps = detectOverlaps([a, b]);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('AMBIGUOUS');
   });
 });

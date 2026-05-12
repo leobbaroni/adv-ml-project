@@ -5,11 +5,12 @@ export type NormalizedEvent = {
   summary: string;
   startDate: Date;
   endDate: Date;
+  status: 'CONFIRMED' | 'BLOCKED';
 };
 
 export type Overlap = {
-  a: NormalizedEvent & { sourceId: string };
-  b: NormalizedEvent & { sourceId: string };
+  a: NormalizedEvent & { sourceId: string; sourceLabel: string };
+  b: NormalizedEvent & { sourceId: string; sourceLabel: string };
   kind: 'EXACT_DUPLICATE' | 'AIRBNB_SAME_DAY_BLOCK' | 'AMBIGUOUS';
 };
 

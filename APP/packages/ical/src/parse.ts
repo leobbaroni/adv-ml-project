@@ -7,6 +7,20 @@ import type { NormalizedEvent } from './index.js';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+function inferStatus(summary: string, icalStatus?: string): 'CONFIRMED' | 'BLOCKED' {
+  if (icalStatus) {
+    const upper = String(icalStatus).toUpperCase();
+    if (upper === 'TENTATIVE' || upper === 'CANCELLED') {
+      return 'BLOCKED';
+    }
+  }
+  const lower = summary.toLowerCase();
+  if (lower.includes('not available')) {
+    return 'BLOCKED';
+  }
+  return 'CONFIRMED';
+}
+
 export function parseICal(icsText: string): NormalizedEvent[] {
   if (!icsText) return [];
 
@@ -37,8 +51,9 @@ export function parseICal(icsText: string): NormalizedEvent[] {
     }
 
     const summary = typeof component.summary === 'string' ? component.summary : '';
+    const status = inferStatus(summary, component.status);
 
-    events.push({ externalUid: uid, summary, startDate, endDate });
+    events.push({ externalUid: uid, summary, startDate, endDate, status });
   }
 
   return events;

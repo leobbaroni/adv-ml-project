@@ -1,8 +1,8 @@
 // iCal polling job. Phase 1: fetch one source, parse, upsert reservations.
-// Overlap detection and AI escalation land in Phase 2.
+// Phase 2: overlap detection and auto-resolution.
 
 import { prisma } from '@app/db';
-import { fetchICal, parseICal } from '@app/ical';
+import { detectOverlaps, fetchICal, parseICal } from '@app/ical';
 import type { PollIcalJob } from '@app/shared';
 import { logger } from '../logger.js';
 
@@ -60,6 +60,7 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
         summary: event.summary,
         startDate: event.startDate,
         endDate: event.endDate,
+        status: event.status,
         lastSeenAt: now,
       },
       create: {
@@ -69,10 +70,99 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
         summary: event.summary,
         startDate: event.startDate,
         endDate: event.endDate,
-        status: 'CONFIRMED',
+        status: event.status,
         lastSeenAt: now,
       },
     });
+  }
+
+  // Phase 2: overlap detection and auto-resolution
+  const reservations = await prisma.reservation.findMany({
+    where: { propertyId: source.propertyId },
+    include: { source: { select: { label: true } } },
+  });
+
+  const sourcedEvents = reservations
+    .filter((r) => r.status !== 'SUPPRESSED')
+    .map((r) => ({
+      externalUid: r.externalUid,
+      summary: r.summary,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      sourceId: r.sourceId,
+      sourceLabel: r.source.label,
+      status: r.status as 'CONFIRMED' | 'BLOCKED',
+    }));
+
+  const overlaps = detectOverlaps(sourcedEvents);
+
+  for (const overlap of overlaps) {
+    const resA = reservations.find(
+      (r) => r.sourceId === overlap.a.sourceId && r.externalUid === overlap.a.externalUid,
+    );
+    const resB = reservations.find(
+      (r) => r.sourceId === overlap.b.sourceId && r.externalUid === overlap.b.externalUid,
+    );
+    if (!resA || !resB) continue;
+
+    const existing = await prisma.overlapDecision.findFirst({
+      where: {
+        reservationIds: { hasEvery: [resA.id, resB.id] },
+        revertedAt: null,
+      },
+    });
+    if (existing) continue;
+
+    if (overlap.kind === 'EXACT_DUPLICATE') {
+      const aSummaryLen = overlap.a.summary.trim().length;
+      const bSummaryLen = overlap.b.summary.trim().length;
+      const kept = aSummaryLen >= bSummaryLen ? resA : resB;
+      const dropped = aSummaryLen >= bSummaryLen ? resB : resA;
+
+      await prisma.reservation.update({
+        where: { id: dropped.id },
+        data: { status: 'SUPPRESSED', suppressionReason: 'DUPLICATE' },
+      });
+
+      await prisma.overlapDecision.create({
+        data: {
+          propertyId: source.propertyId,
+          reservationIds: [kept.id, dropped.id],
+          action: 'DROP_DUPLICATE',
+          createdByAi: false,
+          acceptedByUser: true,
+        },
+      });
+    } else if (overlap.kind === 'AIRBNB_SAME_DAY_BLOCK') {
+      const blocked = overlap.a.status === 'BLOCKED' ? resA : resB;
+      const confirmed = overlap.a.status === 'BLOCKED' ? resB : resA;
+
+      await prisma.reservation.update({
+        where: { id: blocked.id },
+        data: { status: 'SUPPRESSED', suppressionReason: 'AIRBNB_SAME_DAY_BLOCK' },
+      });
+
+      await prisma.overlapDecision.create({
+        data: {
+          propertyId: source.propertyId,
+          reservationIds: [blocked.id, confirmed.id],
+          action: 'SUPPRESS_BLOCK',
+          createdByAi: false,
+          acceptedByUser: true,
+        },
+      });
+    } else if (overlap.kind === 'AMBIGUOUS') {
+      await prisma.overlapDecision.create({
+        data: {
+          propertyId: source.propertyId,
+          reservationIds: [resA.id, resB.id],
+          action: 'AI_PROPOSED',
+          createdByAi: false,
+          acceptedByUser: false,
+          aiRationale: 'Pending manual review — ambiguous overlap detected.',
+        },
+      });
+    }
   }
 
   await prisma.iCalSource.update({
@@ -90,6 +180,7 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
       propertyId: source.propertyId,
       fetched: events.length,
       upserted: events.length,
+      overlaps: overlaps.length,
       etag: result.etag ?? null,
       durationMs: Date.now() - startedAt,
     },

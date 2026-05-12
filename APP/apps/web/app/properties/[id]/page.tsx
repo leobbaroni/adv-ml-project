@@ -14,10 +14,11 @@ import {
 } from '@app/shared';
 import { trpc } from '@/lib/trpc/react';
 import type { AppRouter } from '@/lib/trpc/server';
+import { CalendarView } from '@/components/CalendarView';
+import { PendingOverlaps } from '@/components/PendingOverlaps';
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type PropertyFromQuery = RouterOutputs['property']['byId'];
-type ReservationFromQuery = RouterOutputs['ical']['reservationsByProperty'][number];
 
 type FormErrors = Partial<Record<keyof PropertyCreateInput, string>>;
 type SourceFormErrors = Partial<{ label: string; url: string }>;
@@ -29,7 +30,8 @@ export default function PropertyDetailPage() {
   const utils = trpc.useUtils();
 
   const property = trpc.property.byId.useQuery({ id }, { retry: false });
-  const reservations = trpc.ical.reservationsByProperty.useQuery({ propertyId: id });
+  const calendar = trpc.ical.calendarByProperty.useQuery({ propertyId: id });
+  const overlaps = trpc.ical.pendingOverlapsByProperty.useQuery({ propertyId: id });
 
   const [editing, setEditing] = useState(false);
 
@@ -95,10 +97,16 @@ export default function PropertyDetailPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold tracking-tightish mb-3">Recent reservations</h2>
-        <ReservationsTable
-          loading={reservations.isLoading}
-          rows={reservations.data ?? []}
+        <h2 className="text-lg font-semibold tracking-tightish mb-3">Calendar</h2>
+        <CalendarView reservations={calendar.data ?? []} loading={calendar.isLoading} />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tightish mb-3">Pending overlaps</h2>
+        <PendingOverlaps
+          overlaps={overlaps.data ?? []}
+          reservations={calendar.data ?? []}
+          loading={overlaps.isLoading}
         />
       </section>
     </Shell>
@@ -439,55 +447,6 @@ function AddSourceForm({ propertyId, onAdded }: { propertyId: string; onAdded: (
   );
 }
 
-function ReservationsTable({ loading, rows }: { loading: boolean; rows: ReservationFromQuery[] }) {
-  if (loading) return <p className="text-fg-muted text-sm">Loading…</p>;
-  if (rows.length === 0) {
-    return (
-      <div className="surface p-8 text-center">
-        <p className="text-fg-muted text-sm">No reservations yet. Click Fetch now on a source above.</p>
-      </div>
-    );
-  }
-  const visible = rows.slice(0, 20);
-  return (
-    <div className="surface overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="text-left text-xs text-fg-muted">
-          <tr className="border-b border-bg-border">
-            <th className="px-4 py-3 font-medium">Source</th>
-            <th className="px-4 py-3 font-medium">Summary</th>
-            <th className="px-4 py-3 font-medium">Start</th>
-            <th className="px-4 py-3 font-medium">End</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visible.map((r) => (
-            <tr key={r.id} className="border-b border-bg-border last:border-b-0">
-              <td className="px-4 py-3">
-                <LabelBadge label={r.source.label} />
-              </td>
-              <td className="px-4 py-3 text-fg truncate max-w-[280px]" title={r.summary}>
-                {r.summary}
-              </td>
-              <td className="px-4 py-3 tabular-nums text-fg-muted">{formatDate(r.startDate)}</td>
-              <td className="px-4 py-3 tabular-nums text-fg-muted">{formatDate(r.endDate)}</td>
-              <td className="px-4 py-3">
-                <StatusPill status={r.status} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rows.length > visible.length && (
-        <p className="px-4 py-3 text-xs text-fg-muted border-t border-bg-border">
-          Showing {visible.length} of {rows.length}.
-        </p>
-      )}
-    </div>
-  );
-}
-
 // ---------- helpers ----------
 
 const inputClass =
@@ -517,29 +476,6 @@ function LabelBadge({ label }: { label: ICalLabel }) {
       {label}
     </span>
   );
-}
-
-function StatusPill({ status }: { status: ReservationFromQuery['status'] }) {
-  const styles: Record<ReservationFromQuery['status'], string> = {
-    CONFIRMED: 'bg-ok/10 text-ok border-ok/30',
-    BLOCKED: 'bg-info/10 text-info border-info/30',
-    SUPPRESSED: 'bg-fg-muted/10 text-fg-muted border-bg-border',
-  };
-  return (
-    <span
-      className={`inline-flex items-center h-6 px-2 rounded-full border text-[10px] font-medium tracking-wider ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
-}
-
-function formatDate(d: Date): string {
-  // YYYY-MM-DD, UTC-safe (Prisma @db.Date arrives as midnight UTC).
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 function formatRelative(d: Date | null): string {

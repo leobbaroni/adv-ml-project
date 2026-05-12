@@ -36,4 +36,29 @@ export const icalRouter = router({
         take: 100,
       });
     }),
+
+  // All reservations for a property ordered by startDate asc (for calendar).
+  calendarByProperty: publicProcedure
+    .input(z.object({ propertyId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.reservation.findMany({
+        where: { propertyId: input.propertyId },
+        orderBy: { startDate: 'asc' },
+        include: { source: { select: { label: true } } },
+      });
+    }),
+
+  // Pending overlaps that still need user review.
+  pendingOverlapsByProperty: publicProcedure
+    .input(z.object({ propertyId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.overlapDecision.findMany({
+        where: {
+          propertyId: input.propertyId,
+          revertedAt: null,
+          acceptedByUser: false,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }),
 });
