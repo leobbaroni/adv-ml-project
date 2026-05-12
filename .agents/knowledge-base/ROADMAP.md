@@ -32,4 +32,14 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 - "Fetch now" button triggers `pollIcal` job; events appear in DB.
 - `pnpm test` passes.
 
+## Phase 2 — Done when
+
+- Property detail page renders a merged calendar view of all reservations across sources for that property.
+- `packages/ical/src/overlaps.ts` implements all three deterministic rules from `ICAL-MERGE-SPEC.md`: R1 (exact duplicate — already done in Phase 1), R2 (same-day Airbnb `BLOCKED` overlapping `CONFIRMED`), R3 (back-to-back adjacency is not an overlap).
+- Overlap detection runs automatically after every `pollIcal` job completes (in the worker, not the web).
+- Suppressed reservations are marked with `suppressionReason` and visually distinguished in the calendar.
+- Auto-resolved decisions are recorded as `OverlapDecision` rows with `createdByAi=false`.
+- Unit tests cover R1, R2, R3 with fixture-driven cases.
+- Anything not auto-resolved is listed as a pending overlap in the UI (no AI yet — that's Phase 3).
+
 (Subsequent phases will be filled out with done-criteria when started.)

@@ -50,7 +50,7 @@ Open <http://localhost:3000>.
 
 ## Phase status
 
-See `.agents/knowledge-base/ROADMAP.md`. Currently: **Phase 1 — Properties CRUD + iCal sources + manual "Fetch now"**.
+See `.agents/knowledge-base/ROADMAP.md`. Phase 0 + Phase 1 are **DONE**. Next: **Phase 2 — merged calendar view + deterministic overlap detection (R1, R2, R3)**.
 
 ---
 
