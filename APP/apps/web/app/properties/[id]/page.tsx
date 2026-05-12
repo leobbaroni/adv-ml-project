@@ -15,6 +15,7 @@ import {
 import { trpc } from '@/lib/trpc/react';
 import type { AppRouter } from '@/lib/trpc/server';
 import { CalendarView } from '@/components/CalendarView';
+import { MiniSchedule } from '@/components/MiniSchedule';
 import { PendingOverlaps } from '@/components/PendingOverlaps';
 import { AuditLog } from '@/components/AuditLog';
 
@@ -33,6 +34,7 @@ export default function PropertyDetailPage() {
   const property = trpc.property.byId.useQuery({ id }, { retry: false });
   const calendar = trpc.ical.calendarByProperty.useQuery({ propertyId: id });
   const overlaps = trpc.ical.pendingOverlapsByProperty.useQuery({ propertyId: id });
+  const schedule = trpc.schedule.byProperty.useQuery({ propertyId: id });
 
   const [editing, setEditing] = useState(false);
 
@@ -100,6 +102,16 @@ export default function PropertyDetailPage() {
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tightish mb-3">Calendar</h2>
         <CalendarView reservations={calendar.data ?? []} loading={calendar.isLoading} />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tightish mb-3">Schedule</h2>
+        <MiniSchedule
+          current={schedule.data?.current ?? null}
+          next={schedule.data?.next ?? null}
+          hasOverlap={schedule.data?.hasOverlap ?? false}
+          loading={schedule.isLoading}
+        />
       </section>
 
       <section className="mt-10">

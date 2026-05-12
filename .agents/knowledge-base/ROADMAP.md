@@ -8,7 +8,7 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 | 1 | Properties CRUD + iCal sources UI + manual "fetch now" | DONE |
 | 2 | Merged calendar view + deterministic overlap detection (R1, R2, R3) | DONE |
 | 3 | AI overlap resolver + audit log + reversibility | DONE |
-| 4 | Printable schedule table (window picker, red overlaps, grey "Next") | TODO |
+| 4 | Printable schedule table (window picker, red overlaps, grey "Next") | DONE |
 | 5 | Check-in forms: web edit + magic-link guest page + PDF render | TODO |
 | 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | TODO |
 | 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | TODO |
@@ -42,4 +42,12 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 - Unit tests cover R1, R2, R3 with fixture-driven cases.
 - Anything not auto-resolved is listed as a pending overlap in the UI (no AI yet — that's Phase 3).
 
-(Subsequent phases will be filled out with done-criteria when started.)
+## Phase 4 — Done when
+
+- `/schedule` page renders a table with current + next reservations for all properties.
+- Check-in column has a grey background (`bg-bg-surface`).
+- Unresolved overlaps show a red warning indicator (red left border + warning icon).
+- Window picker shifts the reference date with presets: Today, +30, +60, +90 days.
+- "Download PDF" button generates a server-side PDF of the current schedule view.
+- Property detail page shows a `<MiniSchedule>` card with current/next guest.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.

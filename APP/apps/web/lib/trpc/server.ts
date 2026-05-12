@@ -6,6 +6,7 @@ import { icalSourceRouter } from './routers/ical-source';
 import { icalRouter } from './routers/ical';
 import { notificationRouter } from './routers/notification';
 import { overlapRouter } from './routers/overlap';
+import { scheduleRouter } from './routers/schedule';
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, ts: new Date().toISOString() })),
@@ -14,6 +15,7 @@ export const appRouter = router({
   ical: icalRouter,
   notification: notificationRouter,
   overlap: overlapRouter,
+  schedule: scheduleRouter,
 });
 
 export type AppRouter = typeof appRouter;
