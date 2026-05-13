@@ -7,7 +7,7 @@ export default function SplineHero({
     <div className="w-full h-full min-h-[440px] relative overflow-hidden">
       <iframe
         src={url}
-        className="absolute left-1/2 bottom-0 border-0 dark:[mix-blend-mode:multiply]"
+        className="absolute left-1/2 bottom-0 border-0 pointer-events-none dark:[mix-blend-mode:multiply]"
         style={{
           width: '115%',
           height: '115%',
