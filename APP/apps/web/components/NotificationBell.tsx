@@ -21,6 +21,15 @@ const severityDot: Record<string, string> = {
   CRITICAL: 'bg-red-500',
 };
 
+function getNotificationText(n: { kind: string; payload: unknown }): string {
+  const p = n.payload as Record<string, unknown>;
+  if (p?.type === 'REPAIR_ESTIMATE') return `Repair estimate: ${(p.description as string) || 'New'}`;
+  if (p?.type === 'SHOPPING_ITEMS') return `New shopping items added (${p.count as number})`;
+  if (p?.type === 'CHECKIN_SUBMITTED') return 'Guest check-in form submitted';
+  if (p?.type === 'FETCH_ERROR') return 'iCal fetch error detected';
+  return n.kind.replace(/_/g, ' ');
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -107,7 +116,7 @@ export function NotificationBell() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-fg">
-                      {n.kind.replace(/_/g, ' ')}
+                      {getNotificationText(n)}
                     </p>
                     {n.property?.name && (
                       <p className="text-xs text-fg-muted truncate">

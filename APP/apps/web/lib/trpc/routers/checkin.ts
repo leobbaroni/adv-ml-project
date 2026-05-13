@@ -174,6 +174,7 @@ export const checkinRouter = router({
     .mutation(async ({ ctx, input }) => {
       const form = await ctx.prisma.checkInForm.findUnique({
         where: { guestLinkToken: input.token },
+        include: { reservation: { select: { propertyId: true } } },
       });
       if (!form) throw new TRPCError({ code: 'NOT_FOUND' });
       if (form.guestLinkExpiresAt && form.guestLinkExpiresAt < new Date()) {
@@ -185,12 +186,23 @@ export const checkinRouter = router({
         data: input.data.guests.map((g) => ({ ...g, checkInFormId: form.id })),
       });
 
-      return ctx.prisma.checkInForm.update({
+      const updated = await ctx.prisma.checkInForm.update({
         where: { id: form.id },
         data: {
           filledVia: 'GUEST_LINK',
           submittedAt: new Date(),
         },
       });
+
+      await ctx.prisma.notification.create({
+        data: {
+          kind: 'CHAT_REQUEST',
+          severity: 'INFO',
+          propertyId: form.reservation.propertyId,
+          payload: { type: 'CHECKIN_SUBMITTED', reservationId: form.reservationId },
+        },
+      });
+
+      return updated;
     }),
 });

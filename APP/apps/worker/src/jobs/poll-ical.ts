@@ -61,6 +61,20 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
       where: { id: sourceId },
       data: { lastError: result.error, lastFetchedAt: new Date() },
     });
+    
+    // Only notify once per error state change, to avoid spamming every 15 min.
+    // We check if the previous state already had an error.
+    if (!source.lastError) {
+      await prisma.notification.create({
+        data: {
+          kind: 'OVERLAP',
+          severity: 'CRITICAL',
+          propertyId: source.propertyId,
+          payload: { type: 'FETCH_ERROR', sourceId, error: result.error },
+        },
+      });
+    }
+
     logger.warn(
       { sourceId, propertyId: source.propertyId, error: result.error },
       '[poll-ical] fetch failed',

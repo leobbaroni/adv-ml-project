@@ -499,6 +499,15 @@ export async function startTelegramBot() {
             },
           });
 
+          await prisma.notification.create({
+            data: {
+              kind: 'ORDER_UPDATE',
+              severity: 'INFO',
+              propertyId: property.id,
+              payload: { type: 'REPAIR_ESTIMATE', description: repairResult.description },
+            },
+          });
+
           const lineText = repairResult.lineItems
             .map((li) => `- ${li.name}: €${li.cost.toFixed(2)} (${li.category})`)
             .join('\n');
@@ -575,6 +584,15 @@ export async function startTelegramBot() {
               ikeaUrl: finalUrl,
             });
           }
+
+          await prisma.notification.create({
+            data: {
+              kind: 'ORDER_UPDATE',
+              severity: 'INFO',
+              propertyId: property.id,
+              payload: { type: 'SHOPPING_ITEMS', count: shoppingResult.items.length },
+            },
+          });
 
           const itemLines = savedItems
             .map((i) => {

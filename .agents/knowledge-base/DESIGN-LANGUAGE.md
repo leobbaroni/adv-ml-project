@@ -1,20 +1,21 @@
 # Design Language
 
-Premium-but-restrained. Linear/Vercel/Stripe energy with one tasteful 3D moment.
+Premium-but-restrained. Linear/Vercel/Stripe energy with one tasteful 3D moment. App is branded as "Rental Buddy".
 
 ## Palette
 
-- **Background**: near-black `#0A0A0B` (dashboard) / pure white `#FFFFFF` (print views)
-- **Surface**: `#111114` with `#1F1F23` borders
-- **Text**: `#F4F4F5` primary / `#A1A1AA` secondary
-- **Accent**: warm amber `#F59E0B` (action, focus rings)
+- **Background**: white `#FFFFFF` (light) / near-black `#09090B` (dark)
+- **Surface**: `#F4F4F5` (light) / `#18181B` (dark)
+- **Border**: `#E4E4E7` (light) / `#27272A` (dark)
+- **Text**: `#18181B` primary / `#71717A` secondary (light) vs `#FAFAFA` primary / `#A1A1AA` secondary (dark)
+- **Accent**: Indigo `#4F46E5` (light) / `#6366F1` (dark) for actions and focus rings.
 - **Semantic**:
   - success `#10B981`
   - warning `#F59E0B`
   - danger `#EF4444` (overlap highlights)
   - info `#3B82F6`
 
-Light mode is supported via `next-themes` but the default is dark.
+Theme default relies on `prefers-color-scheme` via `next-themes`, with a header toggle.
 
 ## Typography
 
@@ -26,7 +27,7 @@ Light mode is supported via `next-themes` but the default is dark.
 
 - 4px base unit. Use Tailwind's default scale.
 - Page gutter: 24px on mobile, 48px on desktop.
-- Card radius: 12px. Button radius: 8px. Pill radius: 9999px.
+- Card radius: 16px. Button radius: 10px. Pill radius: 9999px.
 
 ## Motion
 
@@ -37,10 +38,9 @@ Light mode is supported via `next-themes` but the default is dark.
 
 ## 3D moment
 
-- One R3F scene on the dashboard hero: a slowly rotating low-poly house with soft shadow.
-- Lazy-loaded (`next/dynamic`, `ssr: false`).
-- Falls back to a static SVG silhouette if WebGL unavailable.
-- Pauses on tab blur. Max 60fps. Budget: <40kb gzip including drei deps used.
+- Spline integration on the dashboard hero.
+- Lazy-loaded via `next/dynamic`, `ssr: false`.
+- Uses `<spline-viewer>` custom element.
 
 ## Components
 

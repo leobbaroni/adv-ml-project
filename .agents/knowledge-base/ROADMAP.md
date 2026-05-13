@@ -11,10 +11,10 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 | 4 | Printable schedule table (window picker, red overlaps, grey "Next") | DONE |
 | 4b | Fetch-all button + clean insert architecture (delete old → insert fresh → detect overlaps) | DONE |
 | 5 | Check-in forms: web edit + magic-link guest page + PDF render | DONE |
-| 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | IN PROGRESS |
-| 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | IN PROGRESS |
-| 8 | Telegram bot — natural-language PDF delivery (check-in + schedule) *(cut-line)* | IN PROGRESS |
-| 9 | Notifications center + R3F hero + polish | TODO |
+| 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | DONE |
+| 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | DONE |
+| 8 | Telegram bot — natural-language PDF delivery (check-in + schedule) *(cut-line)* | DONE |
+| 9 | Notifications center + R3F hero + polish | DONE |
 | 10 | Business plan + GenAI log + pitch deck | TODO |
 
 ## Phase 0 — Done when
@@ -88,3 +88,13 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 - The bot resolves the request to a specific reservation or schedule window, calls the web PDF API internally, and sends the PDF buffer as a Telegram document.
 - If the request is ambiguous, the bot asks a clarifying question instead of guessing.
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
+
+## Phase 9 — Done when
+
+- Spline 3D hero is implemented and lazy loaded.
+- Complete Theme System is built (`next-themes`, CSS variables, ThemeToggle).
+- Bot and Worker create notifications for all relevant events.
+- Landing page rewritten to showcase features with pitch-deck quality.
+- Entire UI has dark/light mode support using updated Tailwind variables.
+- Project name is updated to "Rental Buddy".
+

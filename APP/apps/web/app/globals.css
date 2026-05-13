@@ -4,12 +4,38 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --bg-surface: #F4F4F5;
+    --bg-border: #E4E4E7;
+    --fg: #18181B;
+    --fg-muted: #71717A;
+    --accent: #4F46E5;
+    --accent-hover: #4338CA;
+    --ok: #10B981;
+    --warn: #F59E0B;
+    --danger: #EF4444;
+    --info: #3B82F6;
+  }
+
+  .dark {
     color-scheme: dark;
+    --bg: #09090B;
+    --bg-surface: #18181B;
+    --bg-border: #27272A;
+    --fg: #FAFAFA;
+    --fg-muted: #A1A1AA;
+    --accent: #6366F1;
+    --accent-hover: #818CF8;
+    --ok: #10B981;
+    --warn: #F59E0B;
+    --danger: #EF4444;
+    --info: #3B82F6;
   }
 
   html,
   body {
-    @apply bg-bg text-fg font-sans antialiased;
+    @apply bg-bg text-fg font-sans antialiased transition-colors duration-300;
   }
 
   body {
@@ -27,7 +53,7 @@
 
 @layer utilities {
   .surface {
-    @apply bg-bg-surface border border-bg-border rounded-card;
+    @apply bg-bg-surface border border-bg-border rounded-card transition-colors duration-300;
   }
   .tabular-nums {
     font-variant-numeric: tabular-nums;
