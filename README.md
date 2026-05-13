@@ -59,6 +59,8 @@ No more switching between tabs. No more manual calendar cross-checking. No more 
 - **Printable Reports** — Generate clean, host-ready schedule tables for cleaning crews or property managers
 - **Multi-Property Dashboard** — View all your listings in one place with unified analytics
 - **Guest Form Automation** — Auto-generate check-in forms and welcome packs
+- **AI Shopping Orders** — Send "buy 6 cups for Triplex" via Telegram; AI extracts items, matches them to real IKEA products with live pricing, and tracks orders per property
+- **AI Repair Estimates** — Message "repair bathroom door" via Telegram; AI generates a detailed cost breakdown (materials, labor, other) with Portugal-specific pricing
 
 ---
 
