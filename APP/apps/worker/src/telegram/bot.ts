@@ -328,7 +328,7 @@ export async function startTelegramBot() {
 
   bot.command('start', (ctx) =>
     ctx.reply(
-      'Concierge online.\n\n' +
+      'Rental Buddy online.\n\n' +
         'You can ask me things like:\n' +
         '• "check-in form for May 11"\n' +
         '• "send me the schedule for this month"\n' +

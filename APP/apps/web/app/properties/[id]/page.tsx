@@ -193,7 +193,7 @@ function Header({
             type="button"
             onClick={confirmDelete}
             disabled={del.isPending}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors"
           >
             <Trash2 size={14} /> {del.isPending ? 'Deleting…' : 'Delete'}
           </button>
@@ -451,7 +451,7 @@ function SourceRow({
           type="button"
           onClick={confirmDelete}
           disabled={del.isPending}
-          className="inline-flex items-center justify-center h-9 w-9 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
+          className="inline-flex items-center justify-center h-9 w-9 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors"
           aria-label="Delete source"
         >
           <Trash2 size={14} />
@@ -523,7 +523,7 @@ function AddSourceForm({ propertyId, onAdded }: { propertyId: string; onAdded: (
       <button
         type="submit"
         disabled={create.isPending}
-        className="inline-flex items-center gap-2 h-10 px-4 rounded-btn bg-accent text-bg font-medium hover:bg-amber-400 disabled:opacity-60 transition-colors"
+        className="inline-flex items-center gap-2 h-10 px-4 rounded-btn bg-accent text-white font-medium hover:bg-accent-hover disabled:opacity-60 transition-colors"
       >
         <Plus size={16} /> {create.isPending ? 'Adding…' : 'Add source'}
       </button>

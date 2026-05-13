@@ -125,7 +125,7 @@ export default function SchedulePdfDocument({
   generatedAt,
 }: Props) {
   return (
-    <Document title="Schedule" author="Concierge">
+    <Document title="Schedule" author="Rental Buddy">
       <Page size="A4" orientation="landscape" style={styles.page}>
         <Text style={styles.title}>Schedule</Text>
         <Text style={styles.subtitle}>

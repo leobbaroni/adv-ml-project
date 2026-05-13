@@ -56,11 +56,11 @@ function getMonthWeeks(month: Date): (Date | null)[][] {
 // ---------- color mapping ----------
 
 const SOURCE_COLORS: Record<string, string> = {
-  AIRBNB: 'bg-ok/15 text-ok border-ok/25',
-  BOOKING: 'bg-info/15 text-info border-info/25',
-  VRBO: 'bg-warn/15 text-warn border-warn/25',
-  INTERHOME: 'bg-accent/15 text-accent border-accent/25',
-  OTHER: 'bg-fg-muted/15 text-fg-muted border-fg-muted/25',
+  AIRBNB: 'bg-ok text-white border-transparent',
+  BOOKING: 'bg-info text-white border-transparent',
+  VRBO: 'bg-warn text-white border-transparent',
+  INTERHOME: 'bg-accent text-white border-transparent',
+  OTHER: 'bg-fg-muted text-white border-transparent',
 };
 
 function sourceColor(label: string): string {

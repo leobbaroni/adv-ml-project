@@ -20,13 +20,13 @@
 
   .dark {
     color-scheme: dark;
-    --bg: #09090B;
-    --bg-surface: #18181B;
-    --bg-border: #27272A;
-    --fg: #FAFAFA;
-    --fg-muted: #A1A1AA;
-    --accent: #6366F1;
-    --accent-hover: #818CF8;
+    --bg: #18181B; /* zinc-900 */
+    --bg-surface: #27272A; /* zinc-800 */
+    --bg-border: #3F3F46; /* zinc-700 */
+    --fg: #FAFAFA; /* zinc-50 */
+    --fg-muted: #A1A1AA; /* zinc-400 */
+    --accent: #6366F1; /* Indigo 500 */
+    --accent-hover: #818CF8; /* Indigo 400 */
     --ok: #10B981;
     --warn: #F59E0B;
     --danger: #EF4444;

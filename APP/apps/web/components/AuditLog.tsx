@@ -73,7 +73,7 @@ export function AuditLog({ propertyId }: AuditLogProps) {
                     type="button"
                     onClick={() => revert.mutate({ decisionId: item.id })}
                     disabled={isReverting}
-                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors text-[10px] font-medium"
+                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors text-[10px] font-medium"
                   >
                     <RotateCcw size={12} />
                     {isReverting ? 'Reverting…' : 'Revert'}
@@ -104,12 +104,12 @@ export function AuditLog({ propertyId }: AuditLogProps) {
                       </span>
                       <span className="text-fg truncate">{r.summary}</span>
                       {isDropped && (
-                        <span className="shrink-0 text-[10px] font-medium text-danger uppercase tracking-wider">
+                        <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-sm bg-danger text-white text-[10px] font-medium uppercase tracking-wider">
                           Removed
                         </span>
                       )}
                       {isKept && (
-                        <span className="shrink-0 text-[10px] font-medium text-ok uppercase tracking-wider">
+                        <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-sm bg-ok text-white text-[10px] font-medium uppercase tracking-wider">
                           Kept
                         </span>
                       )}
@@ -131,7 +131,7 @@ export function AuditLog({ propertyId }: AuditLogProps) {
 function StatusBadge({ item }: { item: HistoryItem }) {
   if (item.revertedAt) {
     return (
-      <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full border border-danger/30 bg-danger/10 text-danger text-[10px] font-medium tracking-wider">
+      <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full bg-danger text-white text-[10px] font-medium tracking-wider">
         Reverted
       </span>
     );
@@ -139,14 +139,14 @@ function StatusBadge({ item }: { item: HistoryItem }) {
 
   if (item.acceptedByUser) {
     return (
-      <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full border border-ok/30 bg-ok/10 text-ok text-[10px] font-medium tracking-wider">
+      <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full bg-ok text-white text-[10px] font-medium tracking-wider">
         Accepted
       </span>
     );
   }
 
   return (
-    <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full border border-warn/30 bg-warn/10 text-warn text-[10px] font-medium tracking-wider">
+    <span className="shrink-0 inline-flex items-center h-6 px-2 rounded-full bg-warn text-white text-[10px] font-medium tracking-wider">
       Pending
     </span>
   );

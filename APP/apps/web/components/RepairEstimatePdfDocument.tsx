@@ -135,7 +135,7 @@ export function RepairEstimatePdfDocument({ property, description, lineItems, ge
 
         <View style={styles.footer}>
           <Text>
-            Generated on {fmtDate(generatedAt)} · Concierge Repair Estimate
+            Generated on {fmtDate(generatedAt)} · Rental Buddy Repair Estimate
           </Text>
         </View>
       </Page>

@@ -436,17 +436,16 @@ function DeleteButton({ id }: { id: string }) {
   });
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (window.confirm('Delete this item?')) del.mutate({ id });
-      }}
-      disabled={del.isPending}
-      className="inline-flex items-center justify-center h-8 w-8 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
-      aria-label="Delete item"
-    >
-      <Trash2 size={14} />
-    </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('Delete this item?')) del.mutate({ id });
+          }}
+          disabled={del.isPending}
+          className="inline-flex items-center justify-center h-8 w-8 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors"
+        >
+          <Trash2 size={14} />
+        </button>
   );
 }
 

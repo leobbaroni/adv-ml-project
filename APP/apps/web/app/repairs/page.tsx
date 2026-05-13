@@ -171,7 +171,7 @@ export default function RepairsPage() {
                 <button
                   type="button"
                   onClick={() => removeLineItem(index)}
-                  className="inline-flex items-center justify-center h-10 w-10 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 transition-colors"
+                  className="inline-flex items-center justify-center h-10 w-10 rounded-btn bg-danger text-white hover:bg-danger/90 transition-colors"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -333,7 +333,7 @@ function EstimateCard({
               if (window.confirm('Delete this estimate?')) del.mutate({ id: item.id });
             }}
             disabled={del.isPending}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors"
           >
             <Trash2 size={12} />
           </button>
@@ -381,7 +381,7 @@ function EstimateCard({
               <button
                 type="button"
                 onClick={() => setEditItems((prev) => prev.filter((_, i) => i !== index))}
-                className="inline-flex items-center justify-center h-8 w-8 rounded text-danger hover:bg-danger/10"
+                className="inline-flex items-center justify-center h-8 w-8 rounded bg-danger text-white hover:bg-danger/90"
               >
                 <Trash2 size={12} />
               </button>

@@ -1,4 +1,4 @@
-# Concierge — Real Estate Agent
+# Rental Buddy — Real Estate Agent
 
 AI-driven channel manager for short-term rental hosts. Merges Airbnb, Booking, VRBO, and Interhome calendars in real time, resolves overlaps with AI, and lets you operate the property portfolio from a Telegram chat.
 

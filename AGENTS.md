@@ -10,7 +10,7 @@
 ## Project Context
 - **Course:** 2758-T4 Advanced Topics in ML (Nova SBE). Student project, not production.
 - **Goal:** AI-driven startup prototype (business plan + full-stack app with UI).
-- **Product:** Concierge — AI channel manager for short-term rental hosts. Merges iCal feeds, resolves overlaps with AI, runs from a Telegram chat. See `README.md`.
+- **Product:** Rental Buddy — AI channel manager for short-term rental hosts. Merges iCal feeds, resolves overlaps with AI, runs from a Telegram chat. See `README.md`.
 
 ## Repo Layout
 - `APP/` — pnpm monorepo (apps/web, apps/worker, packages/*). See `README.md` for the full tree.

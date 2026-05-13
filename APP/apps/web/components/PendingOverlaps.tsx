@@ -91,7 +91,7 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
                     </>
                   ) : o.action === 'KEEP' ? (
                     <>
-                      Decision: <span className="text-ok font-medium">Keep both reservations</span>
+                      Decision: <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-ok text-white text-xs font-medium ml-1">Keep both reservations</span>
                     </>
                   ) : (
                     <>
@@ -108,7 +108,7 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
                   type="button"
                   onClick={() => accept.mutate({ decisionId: o.id })}
                   disabled={isAccepting || isReverting}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn border border-ok/40 text-ok hover:bg-ok/10 disabled:opacity-60 transition-colors text-xs font-medium"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn bg-ok text-white hover:bg-ok/90 disabled:opacity-60 transition-colors text-xs font-medium"
                 >
                   <Check size={14} />
                   {isAccepting ? 'Accepting…' : 'Accept'}
@@ -117,7 +117,7 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
                   type="button"
                   onClick={() => revert.mutate({ decisionId: o.id })}
                   disabled={isAccepting || isReverting}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors text-xs font-medium"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-btn bg-danger text-white hover:bg-danger/90 disabled:opacity-60 transition-colors text-xs font-medium"
                 >
                   <RotateCcw size={14} />
                   {isReverting ? 'Reverting…' : 'Revert'}
@@ -147,12 +147,12 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
                       </span>
                       <span className="text-fg truncate">{r.summary}</span>
                       {isDrop && (
-                        <span className="shrink-0 text-[10px] font-medium text-danger uppercase tracking-wider">
+                        <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-sm bg-danger text-white text-[10px] font-medium uppercase tracking-wider">
                           Remove
                         </span>
                       )}
                       {isKeep && (
-                        <span className="shrink-0 text-[10px] font-medium text-ok uppercase tracking-wider">
+                        <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded-sm bg-ok text-white text-[10px] font-medium uppercase tracking-wider">
                           Keep
                         </span>
                       )}
