@@ -4,6 +4,7 @@
 import { Bot, InputFile } from 'grammy';
 import { prisma } from '@app/db';
 import { parseShoppingMessage, parsePdfRequest } from '@app/ai';
+import { findIkeaProductByName } from '@app/ai/ikea-catalog';
 import { logger } from '../logger.js';
 
 let bot: Bot | null = null;
@@ -14,6 +15,73 @@ function formatDate(d: Date): string {
   const m = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function formatDateShort(d: Date): string {
+  const date = new Date(d);
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${day}/${month}`;
+}
+
+async function generateTextSchedule(params: {
+  referenceDate: string;
+  propertyId?: string;
+  windowDays?: number;
+}): Promise<string | null> {
+  try {
+    const referenceDate = new Date(params.referenceDate);
+    const windowDays = params.windowDays ?? 30;
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const cutoff = new Date(referenceDate.getTime() + windowDays * MS_PER_DAY);
+
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        endDate: { gte: referenceDate },
+        startDate: { lte: cutoff },
+        status: { not: 'SUPPRESSED' },
+        ...(params.propertyId ? { propertyId: params.propertyId } : {}),
+      },
+      orderBy: { startDate: 'asc' },
+      select: {
+        id: true,
+        summary: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+        property: { select: { name: true } },
+        source: { select: { label: true } },
+      },
+    });
+
+    if (reservations.length === 0) {
+      return '📅 No reservations found for this period.';
+    }
+
+    const lines: string[] = [];
+    lines.push(`📅 Schedule — ${formatDateShort(referenceDate)} to ${formatDateShort(cutoff)}`);
+    lines.push('');
+
+    let currentProperty = '';
+    for (const r of reservations) {
+      if (r.property.name !== currentProperty) {
+        currentProperty = r.property.name;
+        lines.push(`🏠 *${currentProperty}*`);
+      }
+      const checkIn = formatDateShort(r.startDate);
+      const checkOut = formatDateShort(r.endDate);
+      const status = r.status === 'SUPPRESSED' ? ' ~~SUPPRESSED~~' : '';
+      lines.push(`  • ${checkIn} → ${checkOut} — ${r.summary}${status}`);
+    }
+
+    lines.push('');
+    lines.push(`Total: ${reservations.length} reservation(s)`);
+
+    return lines.join('\n');
+  } catch (err) {
+    logger.error({ err }, '[telegram] text schedule generation failed');
+    return null;
+  }
 }
 
 export async function sendOverlapAlert(
@@ -233,10 +301,20 @@ export async function startTelegramBot() {
         }
 
         for (const item of shoppingResult.items) {
-          // Always generate an IKEA search link from the item name so the user
-          // has a starting point. They can refine it on the Orders page.
-          const searchUrl =
-            item.ikeaUrl ??
+          // Use AI-provided URL, or look up in catalog, or fall back to search
+          let productUrl = item.ikeaUrl;
+          let productPrice = item.unitPrice;
+
+          if (!productUrl) {
+            const catalogProduct = findIkeaProductByName(item.name);
+            if (catalogProduct) {
+              productUrl = `https://www.ikea.com/pt/en/p/-s${catalogProduct.articleNumber.replace(/\./g, '')}/`;
+              productPrice = catalogProduct.unitPrice;
+            }
+          }
+
+          const finalUrl =
+            productUrl ??
             `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(item.name)}`;
 
           await prisma.shoppingItem.create({
@@ -244,8 +322,8 @@ export async function startTelegramBot() {
               propertyId: property.id,
               name: item.name,
               qty: item.qty,
-              unitPrice: item.unitPrice ?? null,
-              ikeaUrl: searchUrl,
+              unitPrice: productPrice ?? null,
+              ikeaUrl: finalUrl,
               source: 'CHAT',
               status: 'PROPOSED',
             },
@@ -348,21 +426,44 @@ export async function startTelegramBot() {
           }
           const url = `http://localhost:3000/api/schedule/pdf?${params.toString()}`;
           logger.info({ url }, '[telegram] fetching schedule PDF');
-          const response = await fetch(url);
-          if (response.ok) {
-            const buffer = await response.arrayBuffer();
-            await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'schedule.pdf'));
+          try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+            if (response.ok) {
+              const buffer = await response.arrayBuffer();
+              await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'schedule.pdf'));
+              await prisma.chatMessage.create({
+                data: {
+                  direction: 'OUTBOUND',
+                  telegramUserId,
+                  text: 'Schedule PDF delivered',
+                  aiAction: 'PDF_DELIVERED',
+                },
+              });
+              return;
+            }
+            logger.warn({ status: response.status, statusText: response.statusText }, '[telegram] schedule PDF fetch failed — falling back to text');
+          } catch (fetchErr) {
+            logger.error({ fetchErr }, '[telegram] schedule PDF fetch threw — falling back to text');
+          }
+
+          // Fallback: send text-based schedule
+          const textSchedule = await generateTextSchedule({
+            referenceDate: pdfResult.referenceDate,
+            propertyId: pdfResult.propertyId ?? undefined,
+            windowDays: pdfResult.windowDays ?? undefined,
+          });
+          if (textSchedule) {
+            await ctx.reply(textSchedule, { parse_mode: 'Markdown' });
             await prisma.chatMessage.create({
               data: {
                 direction: 'OUTBOUND',
                 telegramUserId,
-                text: 'Schedule PDF delivered',
-                aiAction: 'PDF_DELIVERED',
+                text: 'Schedule text delivered (PDF fallback)',
+                aiAction: 'SCHEDULE_TEXT_DELIVERED',
               },
             });
             return;
           }
-          logger.warn({ status: response.status }, '[telegram] schedule PDF fetch failed');
         }
       }
     } catch (err) {
