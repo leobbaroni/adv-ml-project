@@ -1,5 +1,6 @@
 'use client';
 
+import { RotateCcw } from 'lucide-react';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@/lib/trpc/server';
 import { trpc } from '@/lib/trpc/react';
@@ -7,12 +8,29 @@ import { trpc } from '@/lib/trpc/react';
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type HistoryItem = RouterOutputs['overlap']['history'][number];
 
+const ACTION_LABELS: Record<string, string> = {
+  DROP_DUPLICATE: 'Drop duplicate',
+  SUPPRESS_BLOCK: 'Suppress blocked',
+  AI_PROPOSED: 'AI proposed — review needed',
+  KEEP: 'Keep both',
+  MANUAL_OVERRIDE: 'Manual override',
+};
+
 interface AuditLogProps {
   propertyId: string;
 }
 
 export function AuditLog({ propertyId }: AuditLogProps) {
   const history = trpc.overlap.history.useQuery({ propertyId });
+  const utils = trpc.useUtils();
+
+  const revert = trpc.overlap.revert.useMutation({
+    onSuccess: () => {
+      void utils.overlap.history.invalidate({ propertyId });
+      void utils.ical.pendingOverlapsByProperty.invalidate({ propertyId });
+      void utils.ical.calendarByProperty.invalidate({ propertyId });
+    },
+  });
 
   if (history.isLoading) {
     return <p className="text-fg-muted text-sm">Loading audit log…</p>;
@@ -30,43 +48,82 @@ export function AuditLog({ propertyId }: AuditLogProps) {
 
   return (
     <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-      {items.map((item) => (
-        <div key={item.id} className="surface p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-fg">
-                {item.action}
-              </p>
-              <p className="text-xs text-fg-muted mt-0.5">
-                {formatDateTime(item.createdAt)}
-              </p>
-              {item.aiRationale && (
-                <p className="text-xs text-fg-muted mt-1 italic">“{item.aiRationale}”</p>
-              )}
-            </div>
-            <StatusBadge item={item} />
-          </div>
+      {items.map((item) => {
+        const canRevert = item.acceptedByUser && !item.revertedAt;
+        const isReverting = revert.isPending && revert.variables?.decisionId === item.id;
 
-          {item.reservations.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {item.reservations.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center gap-3 text-xs bg-bg border border-bg-border rounded-btn px-3 py-2"
-                >
-                  <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted">
-                    {r.source.label}
-                  </span>
-                  <span className="text-fg truncate">{r.summary}</span>
-                  <span className="text-fg-muted tabular-nums ml-auto">
-                    {formatDate(r.startDate)} → {formatDate(r.endDate)}
-                  </span>
-                </div>
-              ))}
+        return (
+          <div key={item.id} className="surface p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-fg">
+                  {ACTION_LABELS[item.action] ?? item.action}
+                </p>
+                <p className="text-xs text-fg-muted mt-0.5">
+                  {formatDateTime(item.createdAt)}
+                </p>
+                {item.aiRationale && (
+                  <p className="text-xs text-fg-muted mt-1 italic">“{item.aiRationale}”</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <StatusBadge item={item} />
+                {canRevert && (
+                  <button
+                    type="button"
+                    onClick={() => revert.mutate({ decisionId: item.id })}
+                    disabled={isReverting}
+                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors text-[10px] font-medium"
+                  >
+                    <RotateCcw size={12} />
+                    {isReverting ? 'Reverting…' : 'Revert'}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+
+            {item.reservations.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {item.reservations.map((r) => {
+                  const isKept = item.reservationIds[0] === r.id;
+                  const isDropped = item.reservationIds[1] === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      className={[
+                        'flex items-center gap-3 text-xs rounded-btn px-3 py-2 border',
+                        isDropped
+                          ? 'bg-danger/5 border-danger/20'
+                          : isKept
+                            ? 'bg-ok/5 border-ok/20'
+                            : 'bg-bg border-bg-border',
+                      ].join(' ')}
+                    >
+                      <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted">
+                        {r.source.label}
+                      </span>
+                      <span className="text-fg truncate">{r.summary}</span>
+                      {isDropped && (
+                        <span className="shrink-0 text-[10px] font-medium text-danger uppercase tracking-wider">
+                          Removed
+                        </span>
+                      )}
+                      {isKept && (
+                        <span className="shrink-0 text-[10px] font-medium text-ok uppercase tracking-wider">
+                          Kept
+                        </span>
+                      )}
+                      <span className="text-fg-muted tabular-nums ml-auto">
+                        {formatDate(r.startDate)} → {formatDate(r.endDate)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

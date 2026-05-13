@@ -69,7 +69,7 @@ export const overlapRouter = router({
       return updated;
     }),
 
-  // Revert an overlap decision and restore suppressed reservations.
+  // Revert an overlap decision and restore all involved reservations.
   revert: publicProcedure
     .input(z.object({ decisionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -84,25 +84,12 @@ export const overlapRouter = router({
         data: { revertedAt: new Date() },
       });
 
-      // Restore any reservations that were suppressed by AI_RESOLVED.
+      // Restore all involved reservations to CONFIRMED regardless of suppression reason.
       for (const reservationId of decision.reservationIds) {
-        const reservation = await ctx.prisma.reservation.findUnique({
+        await ctx.prisma.reservation.update({
           where: { id: reservationId },
+          data: { status: 'CONFIRMED', suppressionReason: null },
         });
-
-        if (
-          reservation &&
-          reservation.status === 'SUPPRESSED' &&
-          reservation.suppressionReason === 'AI_RESOLVED'
-        ) {
-          await ctx.prisma.reservation.update({
-            where: { id: reservationId },
-            data: {
-              status: 'CONFIRMED',
-              suppressionReason: null,
-            },
-          });
-        }
       }
 
       return updated;

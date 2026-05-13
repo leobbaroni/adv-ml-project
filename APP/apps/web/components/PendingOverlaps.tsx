@@ -70,17 +70,33 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
         const isAccepting = accept.isPending && accept.variables?.decisionId === o.id;
         const isReverting = revert.isPending && revert.variables?.decisionId === o.id;
 
+        // reservationIds[0] = KEEP (green), reservationIds[1] = DROP (red)
+        const keepId = o.reservationIds[0];
+        const dropId = o.reservationIds[1];
+
         return (
           <div key={o.id} className="surface p-4">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-fg">
-                  Overlap detected
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-fg">
+                  Booking overlap detected
                 </p>
                 <p className="text-xs text-fg-muted mt-0.5">
-                  Action proposed: <span className="text-fg font-medium">{ACTION_LABELS[o.action] ?? o.action}</span>
-                  {o.createdByAi && (
-                    <span className="ml-2 text-accent">AI-suggested</span>
+                  {o.action === 'AI_PROPOSED' ? (
+                    <>
+                      AI recommends: <span className="text-fg font-medium">{ACTION_LABELS[o.action] ?? o.action}</span>
+                      {o.createdByAi && (
+                        <span className="ml-2 text-accent">AI-suggested</span>
+                      )}
+                    </>
+                  ) : o.action === 'KEEP' ? (
+                    <>
+                      Decision: <span className="text-ok font-medium">Keep both reservations</span>
+                    </>
+                  ) : (
+                    <>
+                      Proposed action: <span className="text-fg font-medium">{ACTION_LABELS[o.action] ?? o.action}</span>
+                    </>
                   )}
                 </p>
                 {o.aiRationale && (
@@ -111,20 +127,41 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
 
             {involved.length > 0 && (
               <div className="mt-3 space-y-2">
-                {involved.map((r) => (
-                  <div
-                    key={r.id}
-                    className="flex items-center gap-3 text-xs bg-bg border border-bg-border rounded-btn px-3 py-2"
-                  >
-                    <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted">
-                      {r.source.label}
-                    </span>
-                    <span className="text-fg truncate">{r.summary}</span>
-                    <span className="text-fg-muted tabular-nums ml-auto">
-                      {formatDate(r.startDate)} → {formatDate(r.endDate)}
-                    </span>
-                  </div>
-                ))}
+                {involved.map((r) => {
+                  const isDrop = r.id === dropId;
+                  const isKeep = r.id === keepId;
+                  return (
+                    <div
+                      key={r.id}
+                      className={[
+                        'flex items-center gap-3 text-xs rounded-btn px-3 py-2 border',
+                        isDrop
+                          ? 'bg-danger/5 border-danger/30'
+                          : isKeep
+                            ? 'bg-ok/5 border-ok/30'
+                            : 'bg-bg border-bg-border',
+                      ].join(' ')}
+                    >
+                      <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted">
+                        {r.source.label}
+                      </span>
+                      <span className="text-fg truncate">{r.summary}</span>
+                      {isDrop && (
+                        <span className="shrink-0 text-[10px] font-medium text-danger uppercase tracking-wider">
+                          Remove
+                        </span>
+                      )}
+                      {isKeep && (
+                        <span className="shrink-0 text-[10px] font-medium text-ok uppercase tracking-wider">
+                          Keep
+                        </span>
+                      )}
+                      <span className="text-fg-muted tabular-nums ml-auto">
+                        {formatDate(r.startDate)} → {formatDate(r.endDate)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
