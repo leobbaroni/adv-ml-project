@@ -56,15 +56,17 @@ describe('detectOverlaps (R1)', () => {
     expect(detectOverlaps(events)).toEqual([]);
   });
 
-  it('does not flag identical dates from the same source', () => {
+  it('flags identical dates from the same source as EXACT_DUPLICATE (Interhome self-duplicates)', () => {
     const start = utc(2025, 12, 15);
     const end = utc(2025, 12, 20);
     const events = [
-      makeEvent('airbnb-1', 'a@airbnb.com', start, end),
-      makeEvent('airbnb-1', 'b@airbnb.com', start, end),
+      makeEvent('interhome-1', 'a@interhome.com', start, end),
+      makeEvent('interhome-1', 'b@interhome.com', start, end),
     ];
 
-    expect(detectOverlaps(events)).toEqual([]);
+    const overlaps = detectOverlaps(events);
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.kind).toBe('EXACT_DUPLICATE');
   });
 
   it('returns no overlaps for an empty input', () => {

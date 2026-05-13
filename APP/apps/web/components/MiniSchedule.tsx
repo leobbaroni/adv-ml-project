@@ -9,6 +9,7 @@ interface FlatReservation {
   sourceLabel: string;
   status: string;
   nextCheckIn: Date | null;
+  hasActiveOverlap?: boolean;
 }
 
 interface MiniScheduleProps {

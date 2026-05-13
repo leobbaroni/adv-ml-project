@@ -59,11 +59,12 @@ export const icalRouter = router({
     }),
 
   // All reservations for a property ordered by startDate asc (for calendar).
+  // Excludes SUPPRESSED reservations so the calendar only shows active bookings.
   calendarByProperty: publicProcedure
     .input(z.object({ propertyId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.reservation.findMany({
-        where: { propertyId: input.propertyId },
+        where: { propertyId: input.propertyId, status: { not: 'SUPPRESSED' } },
         orderBy: { startDate: 'asc' },
         include: { source: { select: { label: true } } },
       });

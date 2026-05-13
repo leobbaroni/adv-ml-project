@@ -39,12 +39,11 @@ export function detectOverlaps(events: SourcedEvent[]): Overlap[] {
     for (let j = i + 1; j < events.length; j++) {
       const b = events[j];
       if (!b) continue;
-      if (a.sourceId === b.sourceId) continue;
 
       // R3: back-to-back adjacency is not an overlap.
       if (!intervalsOverlap(a, b)) continue;
 
-      // R1 — Exact duplicate.
+      // R1 — Exact duplicate (even from the same source, e.g. Interhome self-duplicates).
       if (
         a.startDate.getTime() === b.startDate.getTime() &&
         a.endDate.getTime() === b.endDate.getTime()
@@ -52,6 +51,9 @@ export function detectOverlaps(events: SourcedEvent[]): Overlap[] {
         overlaps.push({ a, b, kind: 'EXACT_DUPLICATE' });
         continue;
       }
+
+      // Same-source events are not overlapping for R2 or ambiguous cases.
+      if (a.sourceId === b.sourceId) continue;
 
       // R2 — Same-day Airbnb block.
       const aIsAirbnbBlocked = a.status === 'BLOCKED' && isAirbnbSource(a) && isOneDay(a);

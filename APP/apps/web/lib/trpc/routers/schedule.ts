@@ -15,6 +15,7 @@ interface FlatReservation {
   sourceLabel: string;
   status: string;
   nextCheckIn: Date | null;
+  hasActiveOverlap: boolean;
 }
 
 function computeNextCheckIn(
@@ -42,8 +43,9 @@ export const scheduleRouter = router({
 
       const reservations = await ctx.prisma.reservation.findMany({
         where: {
+          endDate: { gte: referenceDate },
           startDate: { lte: cutoff },
-          NOT: { status: 'BLOCKED', suppressionReason: 'MANUAL' },
+          status: { not: 'SUPPRESSED' },
         },
         include: {
           property: { select: { id: true, name: true } },
@@ -51,6 +53,13 @@ export const scheduleRouter = router({
         },
         orderBy: { startDate: 'asc' },
       });
+
+      // Fetch pending overlaps to mark rows in red
+      const pendingOverlaps = await ctx.prisma.overlapDecision.findMany({
+        where: { revertedAt: null, acceptedByUser: false },
+        select: { reservationIds: true },
+      });
+      const overlapReservationIds = new Set(pendingOverlaps.flatMap((o) => o.reservationIds));
 
       // Group by property to compute nextCheckIn
       const byProperty = new Map<string, { id: string; startDate: Date; endDate: Date }[]>();
@@ -71,6 +80,7 @@ export const scheduleRouter = router({
         sourceLabel: r.source.label,
         status: r.status,
         nextCheckIn: computeNextCheckIn(r, byProperty.get(r.property.id) ?? []),
+        hasActiveOverlap: overlapReservationIds.has(r.id),
       }));
 
       return rows;
@@ -90,9 +100,10 @@ export const scheduleRouter = router({
 
       const reservations = await ctx.prisma.reservation.findMany({
         where: {
+          endDate: { gte: referenceDate },
           startDate: { lte: cutoff },
           propertyId: input.propertyId,
-          NOT: { status: 'BLOCKED', suppressionReason: 'MANUAL' },
+          status: { not: 'SUPPRESSED' },
         },
         include: {
           property: { select: { id: true, name: true } },
@@ -109,6 +120,13 @@ export const scheduleRouter = router({
           throw new TRPCError({ code: 'NOT_FOUND' });
         }
       }
+
+      // Fetch pending overlaps for this property
+      const pendingOverlaps = await ctx.prisma.overlapDecision.findMany({
+        where: { propertyId: input.propertyId, revertedAt: null, acceptedByUser: false },
+        select: { reservationIds: true },
+      });
+      const overlapReservationIds = new Set(pendingOverlaps.flatMap((o) => o.reservationIds));
 
       // Group by property to compute nextCheckIn (only one property here)
       const byProperty = new Map<string, { id: string; startDate: Date; endDate: Date }[]>();
@@ -129,6 +147,7 @@ export const scheduleRouter = router({
         sourceLabel: r.source.label,
         status: r.status,
         nextCheckIn: computeNextCheckIn(r, byProperty.get(r.property.id) ?? []),
+        hasActiveOverlap: overlapReservationIds.has(r.id),
       }));
 
       return rows;

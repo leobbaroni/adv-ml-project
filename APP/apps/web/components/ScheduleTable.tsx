@@ -1,5 +1,7 @@
 'use client';
 
+import { AlertTriangle } from 'lucide-react';
+
 interface FlatReservation {
   id: string;
   property: { id: string; name: string };
@@ -9,6 +11,7 @@ interface FlatReservation {
   sourceLabel: string;
   status: string;
   nextCheckIn: Date | null;
+  hasActiveOverlap?: boolean;
 }
 
 interface ScheduleTableProps {
@@ -73,6 +76,7 @@ export function ScheduleTable({ rows, loading }: ScheduleTableProps) {
         <tbody>
           {rows.map((row) => {
             const isSuppressed = row.status === 'SUPPRESSED';
+            const isRed = row.hasActiveOverlap;
 
             return (
               <tr
@@ -80,10 +84,14 @@ export function ScheduleTable({ rows, loading }: ScheduleTableProps) {
                 className={[
                   'border-b border-bg-border',
                   isSuppressed ? 'opacity-50' : '',
+                  isRed ? 'bg-danger/5 border-l-4 border-l-danger' : '',
                 ].join(' ')}
               >
                 <td className="px-4 py-3 align-top">
-                  <p className="text-sm font-medium text-fg">{row.property.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-fg">{row.property.name}</p>
+                    {isRed && <AlertTriangle size={14} className="text-danger shrink-0" />}
+                  </div>
                   <p className="text-xs text-fg-muted">
                     {isSuppressed ? (
                       <span className="line-through">{row.summary}</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@/lib/trpc/server';
 
@@ -69,15 +70,38 @@ function sourceColor(label: string): string {
 // ---------- component ----------
 
 export function CalendarView({ reservations, loading }: { reservations: Reservation[]; loading?: boolean }) {
+  const [monthOffset, setMonthOffset] = React.useState(0);
+
   if (loading) {
     return <p className="text-fg-muted text-sm">Loading calendar…</p>;
   }
 
   const now = new Date();
-  const months = [0, 1, 2].map((i) => addMonthsUTC(startOfMonthUTC(now), i));
+  const months = [0, 1, 2].map((i) => addMonthsUTC(startOfMonthUTC(now), monthOffset + i));
 
   return (
     <div className="space-y-8">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setMonthOffset((o) => o - 1)}
+          className="inline-flex items-center h-8 px-3 rounded-btn border border-bg-border text-fg hover:bg-bg transition-colors text-sm"
+        >
+          ← Prev
+        </button>
+        <span className="text-sm font-medium text-fg tabular-nums">
+          {MONTH_NAMES[months[0]!.getUTCMonth()]} {months[0]!.getUTCFullYear()}
+          {' – '}
+          {MONTH_NAMES[months[2]!.getUTCMonth()]} {months[2]!.getUTCFullYear()}
+        </span>
+        <button
+          type="button"
+          onClick={() => setMonthOffset((o) => o + 1)}
+          className="inline-flex items-center h-8 px-3 rounded-btn border border-bg-border text-fg hover:bg-bg transition-colors text-sm"
+        >
+          Next →
+        </button>
+      </div>
       {months.map((month) => (
         <MonthView key={month.getTime()} month={month} reservations={reservations} />
       ))}

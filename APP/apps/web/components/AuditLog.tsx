@@ -29,7 +29,7 @@ export function AuditLog({ propertyId }: AuditLogProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
       {items.map((item) => (
         <div key={item.id} className="surface p-4">
           <div className="flex items-start justify-between gap-4">
