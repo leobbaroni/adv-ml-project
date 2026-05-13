@@ -1,5 +1,5 @@
-// iCal polling job. Clear old reservations for the source, insert fresh events,
-// then run overlap detection independently.
+// iCal polling job. Upsert reservations by date to preserve IDs and overlap decisions,
+// then run overlap detection and auto-resolve simple cases.
 
 import { resolveOverlap } from '@app/ai';
 import { prisma } from '@app/db';
@@ -28,6 +28,17 @@ export async function schedulePollIcal() {
   } catch (err) {
     logger.error({ err }, '[poll-ical] schedule failed');
   }
+}
+
+async function hasAcceptedSuppressionDecision(reservationId: string): Promise<boolean> {
+  const decision = await prisma.overlapDecision.findFirst({
+    where: {
+      reservationIds: { has: reservationId },
+      acceptedByUser: true,
+      revertedAt: null,
+    },
+  });
+  return decision !== null;
 }
 
 export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
@@ -69,28 +80,55 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
   const events = parseICal(result.body);
   const now = new Date();
 
-  // 1. Clear all old reservations for this source
-  const deleted = await prisma.reservation.deleteMany({
-    where: { sourceId },
-  });
+  // 1. Upsert reservations by (sourceId, startDate, endDate) to preserve IDs
+  const existing = await prisma.reservation.findMany({ where: { sourceId } });
+  const matchedIds = new Set<string>();
 
-  // 2. Insert fresh events
   for (const event of events) {
-    await prisma.reservation.create({
-      data: {
-        propertyId: source.propertyId,
-        sourceId,
-        externalUid: event.externalUid,
-        summary: event.summary,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        status: event.status,
-        lastSeenAt: now,
-      },
-    });
+    const match = existing.find(
+      (r) =>
+        r.startDate.getTime() === event.startDate.getTime() &&
+        r.endDate.getTime() === event.endDate.getTime(),
+    );
+
+    if (match) {
+      const keepSuppressed =
+        match.status === 'SUPPRESSED' && (await hasAcceptedSuppressionDecision(match.id));
+
+      await prisma.reservation.update({
+        where: { id: match.id },
+        data: {
+          externalUid: event.externalUid,
+          summary: event.summary,
+          status: keepSuppressed ? 'SUPPRESSED' : event.status,
+          suppressionReason: keepSuppressed ? match.suppressionReason : null,
+          lastSeenAt: now,
+        },
+      });
+      matchedIds.add(match.id);
+    } else {
+      await prisma.reservation.create({
+        data: {
+          propertyId: source.propertyId,
+          sourceId,
+          externalUid: event.externalUid,
+          summary: event.summary,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          status: event.status,
+          lastSeenAt: now,
+        },
+      });
+    }
   }
 
-  // 3. Overlap detection runs independently on the fresh data
+  // Delete stale reservations that weren't matched
+  const staleIds = existing.filter((r) => !matchedIds.has(r.id)).map((r) => r.id);
+  if (staleIds.length > 0) {
+    await prisma.reservation.deleteMany({ where: { id: { in: staleIds } } });
+  }
+
+  // 2. Overlap detection on the current data
   const reservations = await prisma.reservation.findMany({
     where: { propertyId: source.propertyId },
     include: { source: { select: { label: true } } },
@@ -119,13 +157,13 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
     );
     if (!resA || !resB) continue;
 
-    const existing = await prisma.overlapDecision.findFirst({
+    const existingDecision = await prisma.overlapDecision.findFirst({
       where: {
         reservationIds: { hasEvery: [resA.id, resB.id] },
         revertedAt: null,
       },
     });
-    if (existing) continue;
+    if (existingDecision) continue;
 
     if (overlap.kind === 'EXACT_DUPLICATE') {
       const aSummaryLen = overlap.a.summary.trim().length;
@@ -166,6 +204,34 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
         },
       });
     } else if (overlap.kind === 'AMBIGUOUS') {
+      // Auto-suppress if one is BLOCKED and the other is CONFIRMED
+      const aBlocked = resA.status === 'BLOCKED';
+      const bBlocked = resB.status === 'BLOCKED';
+      const aConfirmed = resA.status === 'CONFIRMED';
+      const bConfirmed = resB.status === 'CONFIRMED';
+
+      if ((aBlocked && bConfirmed) || (bBlocked && aConfirmed)) {
+        const blocked = aBlocked ? resA : resB;
+        const confirmed = aBlocked ? resB : resA;
+
+        await prisma.reservation.update({
+          where: { id: blocked.id },
+          data: { status: 'SUPPRESSED', suppressionReason: 'AIRBNB_SAME_DAY_BLOCK' },
+        });
+
+        await prisma.overlapDecision.create({
+          data: {
+            propertyId: source.propertyId,
+            reservationIds: [blocked.id, confirmed.id],
+            action: 'SUPPRESS_BLOCK',
+            createdByAi: false,
+            acceptedByUser: true,
+          },
+        });
+        continue;
+      }
+
+      // Both confirmed with different dates → escalate to AI / manual review
       let action: 'AI_PROPOSED' | 'KEEP' = 'AI_PROPOSED';
       let aiRationale = 'AI unavailable; manual review needed.';
 
@@ -239,8 +305,9 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
       sourceId,
       propertyId: source.propertyId,
       fetched: events.length,
-      deleted: deleted.count,
-      created: events.length,
+      updated: matchedIds.size,
+      created: events.length - matchedIds.size,
+      deleted: staleIds.length,
       overlaps: overlaps.length,
       etag: result.etag ?? null,
       durationMs: Date.now() - startedAt,

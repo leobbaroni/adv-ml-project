@@ -9,6 +9,14 @@ type RouterOutputs = inferRouterOutputs<AppRouter>;
 type Overlap = RouterOutputs['ical']['pendingOverlapsByProperty'][number];
 type Reservation = RouterOutputs['ical']['calendarByProperty'][number];
 
+const ACTION_LABELS: Record<string, string> = {
+  DROP_DUPLICATE: 'Drop duplicate',
+  SUPPRESS_BLOCK: 'Suppress blocked',
+  AI_PROPOSED: 'AI proposed — review needed',
+  KEEP: 'Keep both',
+  MANUAL_OVERRIDE: 'Manual override',
+};
+
 interface PendingOverlapsProps {
   overlaps: Overlap[];
   reservations: Reservation[];
@@ -54,7 +62,10 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
       {overlaps.map((o) => {
         const involved = o.reservationIds
           .map((id) => resMap.get(id))
-          .filter(Boolean) as Reservation[];
+          .filter((r): r is Reservation => {
+            if (!r) return false;
+            return r.status !== 'SUPPRESSED';
+          });
 
         const isAccepting = accept.isPending && accept.variables?.decisionId === o.id;
         const isReverting = revert.isPending && revert.variables?.decisionId === o.id;
@@ -67,7 +78,7 @@ export function PendingOverlaps({ overlaps, reservations, propertyId, loading }:
                   Overlap detected
                 </p>
                 <p className="text-xs text-fg-muted mt-0.5">
-                  Action proposed: <span className="text-fg font-medium">{o.action}</span>
+                  Action proposed: <span className="text-fg font-medium">{ACTION_LABELS[o.action] ?? o.action}</span>
                   {o.createdByAi && (
                     <span className="ml-2 text-accent">AI-suggested</span>
                   )}
