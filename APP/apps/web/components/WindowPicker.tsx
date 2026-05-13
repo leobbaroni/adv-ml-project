@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface WindowPickerProps {
   referenceDate: Date;
@@ -8,7 +8,7 @@ interface WindowPickerProps {
   onChange: (referenceDate: Date, windowDays: number) => void;
 }
 
-type Preset = 'this-month' | 'next-month' | 'custom';
+type Mode = 'this-month' | 'next-month' | 'custom';
 
 function endOfMonthUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 23, 59, 59, 999));
@@ -19,17 +19,17 @@ function addMonthsUTC(d: Date, n: number): Date {
 }
 
 function daysBetween(a: Date, b: Date): number {
-  return Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-function formatInputDate(d: Date): string {
+function fmt(d: Date): string {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
-function parseInputDate(s: string): Date {
+function parse(s: string): Date {
   const parts = s.split('-');
   const y = Number(parts[0]);
   const m = Number(parts[1]);
@@ -37,7 +37,7 @@ function parseInputDate(s: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-function getPreset(referenceDate: Date, windowDays: number): Preset {
+function detectMode(referenceDate: Date, windowDays: number): Mode {
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const thisMonthEnd = endOfMonthUTC(today);
@@ -60,28 +60,53 @@ function getPreset(referenceDate: Date, windowDays: number): Preset {
 export function WindowPicker({ referenceDate, windowDays, onChange }: WindowPickerProps) {
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const activePreset = getPreset(referenceDate, windowDays);
 
-  const [customFrom, setCustomFrom] = useState(formatInputDate(referenceDate));
+  const [mode, setMode] = useState<Mode>(() => detectMode(referenceDate, windowDays));
+
+  // Inputs for custom mode — keep in sync with props whenever we enter custom
+  const [customFrom, setCustomFrom] = useState(fmt(referenceDate));
   const [customTo, setCustomTo] = useState(
-    formatInputDate(new Date(referenceDate.getTime() + windowDays * 24 * 60 * 60 * 1000)),
+    fmt(new Date(referenceDate.getTime() + windowDays * 24 * 60 * 60 * 1000)),
   );
 
+  useEffect(() => {
+    if (mode === 'custom') {
+      setCustomFrom(fmt(referenceDate));
+      setCustomTo(fmt(new Date(referenceDate.getTime() + windowDays * 24 * 60 * 60 * 1000)));
+    }
+  }, [mode, referenceDate, windowDays]);
+
   const applyThisMonth = () => {
+    setMode('this-month');
     const end = endOfMonthUTC(today);
     onChange(today, daysBetween(today, end));
   };
 
   const applyNextMonth = () => {
+    setMode('next-month');
     const start = addMonthsUTC(today, 1);
     const end = endOfMonthUTC(start);
     onChange(start, daysBetween(start, end));
   };
 
-  const applyCustom = () => {
-    const from = parseInputDate(customFrom);
-    const to = parseInputDate(customTo);
-    if (to.getTime() < from.getTime()) return;
+  const switchToCustom = () => {
+    setMode('custom');
+    const from = parse(customFrom);
+    const to = parse(customTo);
+    onChange(from, daysBetween(from, to));
+  };
+
+  const updateFrom = (val: string) => {
+    setCustomFrom(val);
+    const from = parse(val);
+    const to = parse(customTo);
+    onChange(from, daysBetween(from, to));
+  };
+
+  const updateTo = (val: string) => {
+    setCustomTo(val);
+    const from = parse(customFrom);
+    const to = parse(val);
     onChange(from, daysBetween(from, to));
   };
 
@@ -90,36 +115,29 @@ export function WindowPicker({ referenceDate, windowDays, onChange }: WindowPick
       <div className="flex items-center gap-2">
         <PresetButton
           label="This Month"
-          isActive={activePreset === 'this-month'}
+          isActive={mode === 'this-month'}
           onClick={applyThisMonth}
         />
         <PresetButton
           label="Next Month"
-          isActive={activePreset === 'next-month'}
+          isActive={mode === 'next-month'}
           onClick={applyNextMonth}
         />
         <PresetButton
           label="Set Window"
-          isActive={activePreset === 'custom'}
-          onClick={applyCustom}
+          isActive={mode === 'custom'}
+          onClick={switchToCustom}
         />
       </div>
 
-      {activePreset === 'custom' && (
+      {mode === 'custom' && (
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-fg-muted">From</span>
             <input
               type="date"
               value={customFrom}
-              onChange={(e) => {
-                setCustomFrom(e.target.value);
-                const from = parseInputDate(e.target.value);
-                const to = parseInputDate(customTo);
-                if (to.getTime() >= from.getTime()) {
-                  onChange(from, daysBetween(from, to));
-                }
-              }}
+              onChange={(e) => updateFrom(e.target.value)}
               className="h-8 px-2 rounded-btn bg-bg border border-bg-border text-sm text-fg"
             />
           </div>
@@ -128,14 +146,7 @@ export function WindowPicker({ referenceDate, windowDays, onChange }: WindowPick
             <input
               type="date"
               value={customTo}
-              onChange={(e) => {
-                setCustomTo(e.target.value);
-                const from = parseInputDate(customFrom);
-                const to = parseInputDate(e.target.value);
-                if (to.getTime() >= from.getTime()) {
-                  onChange(from, daysBetween(from, to));
-                }
-              }}
+              onChange={(e) => updateTo(e.target.value)}
               className="h-8 px-2 rounded-btn bg-bg border border-bg-border text-sm text-fg"
             />
           </div>
