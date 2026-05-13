@@ -21,7 +21,7 @@
 - **Web**: Next.js 15 (App Router) + tRPC + Tailwind + shadcn/ui + Framer Motion + R3F
 - **Worker**: Node + BullMQ (Redis) + grammY (Telegram long-polling)
 - **DB**: Postgres 16 + Prisma
-- **AI runtime**: OpenAI-compatible client → OpenCode Zen "big-pickle" (swappable via env)
+- **AI runtime**: OpenAI-compatible client → `google/gemini-3.1-flash-lite` via OpenCode Zen (swappable via `AI_MODEL` env var)
 - **Tooling**: pnpm + Turbo
 
 ## Agent Fleet
