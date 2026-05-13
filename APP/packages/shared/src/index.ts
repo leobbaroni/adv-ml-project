@@ -88,3 +88,18 @@ export const PdfRequestSchema = z.object({
   windowDays: z.coerce.number().int().min(1).max(180).nullable().optional(),
 });
 export type PdfRequest = z.infer<typeof PdfRequestSchema>;
+
+// --- Repair estimate ---
+export const RepairLineItemSchema = z.object({
+  name: z.string().min(1),
+  cost: z.number().positive(),
+  category: z.enum(['MATERIALS', 'LABOR', 'OTHER']),
+});
+export type RepairLineItem = z.infer<typeof RepairLineItemSchema>;
+
+export const RepairParseSchema = z.object({
+  propertyId: z.string().nullable().optional().default(null),
+  description: z.string().min(1),
+  lineItems: z.array(RepairLineItemSchema).min(1),
+});
+export type RepairParse = z.infer<typeof RepairParseSchema>;

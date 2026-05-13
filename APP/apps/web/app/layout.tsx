@@ -33,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/orders" className="hover:text-fg transition-colors">
                   Orders
                 </Link>
+                <Link href="/repairs" className="hover:text-fg transition-colors">
+                  Repairs
+                </Link>
               </nav>
               <NotificationBell />
             </div>

@@ -77,6 +77,18 @@ enum NoteOrigin {
   CHAT
 }
 
+enum RepairStatus {
+  PROPOSED
+  QUOTED
+  APPROVED
+  COMPLETED
+}
+
+enum RepairSource {
+  CHAT
+  WEB
+}
+
 enum ChatDirection {
   INBOUND
   OUTBOUND
@@ -108,6 +120,7 @@ model Property {
   notes_        PropertyNote[]
   overlaps      OverlapDecision[]
   notifications Notification[]
+  repairEstimates RepairEstimate[]
 }
 
 model ICalSource {
@@ -204,6 +217,19 @@ model ShoppingItem {
   status      ShoppingStatus @default(PROPOSED)
   source      ShoppingSource
   createdAt   DateTime       @default(now())
+
+  @@index([propertyId, status])
+}
+
+model RepairEstimate {
+  id          String       @id @default(cuid())
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  description String       @db.Text
+  lineItems   Json
+  status      RepairStatus @default(PROPOSED)
+  source      RepairSource
+  createdAt   DateTime     @default(now())
 
   @@index([propertyId, status])
 }

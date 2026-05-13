@@ -3,7 +3,7 @@
 
 import { Bot, InputFile } from 'grammy';
 import { prisma } from '@app/db';
-import { parseShoppingMessage, parsePdfRequest } from '@app/ai';
+import { parseShoppingMessage, parsePdfRequest, parseRepairMessage } from '@app/ai';
 import {
   findIkeaProductByName,
   getIkeaSearchUrl,
@@ -49,6 +49,10 @@ function isPdfIntent(text: string): boolean {
 
 function isShoppingIntent(text: string): boolean {
   return /\b(buy|order|get|purchase|add)\b/i.test(text) && !isPdfIntent(text);
+}
+
+function isRepairIntent(text: string): boolean {
+  return /\b(repair|fix|broken|leak|damage|replace)\b/i.test(text);
 }
 
 function normalizeText(value: string): string {
@@ -482,7 +486,56 @@ export async function startTelegramBot() {
       }
     }
 
-    // 3. Try PDF request
+    // 3. Try repair
+    if (isRepairIntent(text)) {
+      try {
+        logger.info({ text, propertyCount: properties.length }, '[telegram] trying repair parse');
+        const repairResult = await parseRepairMessage({ text, properties });
+        logger.info({ repairResult }, '[telegram] repair parse result');
+
+        if (repairResult.lineItems.length > 0) {
+          const property = properties.find((p) => p.id === repairResult.propertyId);
+          if (!property) {
+            await ctx.reply("I couldn't find that property.");
+            return;
+          }
+
+          const total = repairResult.lineItems.reduce((sum, li) => sum + li.cost, 0);
+
+          await prisma.repairEstimate.create({
+            data: {
+              propertyId: property.id,
+              description: repairResult.description,
+              lineItems: repairResult.lineItems,
+              source: 'CHAT',
+              status: 'PROPOSED',
+            },
+          });
+
+          const lineText = repairResult.lineItems
+            .map((li) => `- ${li.name}: €${li.cost.toFixed(2)} (${li.category})`)
+            .join('\n');
+
+          await ctx.reply(
+            `Repair estimate for ${property.name}:\n${repairResult.description}\n\n${lineText}\n\nTotal: €${total.toFixed(2)}`,
+          );
+
+          await prisma.chatMessage.create({
+            data: {
+              direction: 'OUTBOUND',
+              telegramUserId,
+              text: `Repair estimate created for ${property.name}`,
+              aiAction: 'REPAIR_CREATED',
+            },
+          });
+          return;
+        }
+      } catch (err) {
+        logger.error({ err }, '[telegram] repair parsing failed');
+      }
+    }
+
+    // 4. Try PDF request
     if (isPdfIntent(text)) {
       try {
         const now = new Date();
