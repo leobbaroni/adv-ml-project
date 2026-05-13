@@ -326,6 +326,14 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
           payload: { overlapDecisionId: decision.id, reservationIds: [keepId, dropId] },
         },
       });
+
+      // Phase 6: Telegram overlap alert
+      try {
+        const { getBot, sendOverlapAlert } = await import('../telegram/bot.js');
+        await sendOverlapAlert(getBot(), decision, resA, resB);
+      } catch (err) {
+        logger.warn({ err }, '[poll-ical] failed to send Telegram overlap alert');
+      }
     }
   }
 

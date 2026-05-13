@@ -72,8 +72,19 @@ export const ShoppingParseSchema = z.object({
       z.object({
         name: z.string().min(1),
         qty: z.number().int().positive(),
+        unitPrice: z.number().positive().optional(),
+        ikeaUrl: z.string().url().optional(),
       }),
     )
     .min(0),
 });
 export type ShoppingParse = z.infer<typeof ShoppingParseSchema>;
+
+export const PdfRequestSchema = z.object({
+  type: z.enum(['CHECKIN', 'SCHEDULE', 'UNKNOWN']),
+  propertyId: z.string().nullable(),
+  reservationId: z.string().optional(),
+  referenceDate: z.string().optional(),
+  windowDays: z.number().int().positive().optional(),
+});
+export type PdfRequest = z.infer<typeof PdfRequestSchema>;

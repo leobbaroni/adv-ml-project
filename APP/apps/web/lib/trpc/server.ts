@@ -8,6 +8,7 @@ import { notificationRouter } from './routers/notification';
 import { overlapRouter } from './routers/overlap';
 import { scheduleRouter } from './routers/schedule';
 import { checkinRouter } from './routers/checkin';
+import { shoppingRouter } from './routers/shopping';
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, ts: new Date().toISOString() })),
@@ -18,6 +19,7 @@ export const appRouter = router({
   overlap: overlapRouter,
   schedule: scheduleRouter,
   checkin: checkinRouter,
+  shopping: shoppingRouter,
 });
 
 export type AppRouter = typeof appRouter;

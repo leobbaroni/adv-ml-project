@@ -10,4 +10,5 @@
 export { extractCheckInData } from './tasks/extract-checkin.js';
 export { resolveOverlap } from './tasks/resolve-overlap.js';
 export { parseShoppingMessage } from './tasks/parse-shopping.js';
+export { parsePdfRequest } from './tasks/parse-pdf-request.js';
 export { getAiClient, getAiModel } from './router.js';

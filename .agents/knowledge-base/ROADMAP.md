@@ -10,10 +10,10 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 | 3 | AI overlap resolver + audit log + reversibility | DONE |
 | 4 | Printable schedule table (window picker, red overlaps, grey "Next") | DONE |
 | 4b | Fetch-all button + clean insert architecture (delete old → insert fresh → detect overlaps) | DONE |
-| 5 | Check-in forms: web edit + magic-link guest page + PDF render | TODO |
-| 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | TODO |
-| 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | TODO |
-| 8 | Telegram bot — `/form <id>` returns PDF *(cut-line)* | TODO |
+| 5 | Check-in forms: web edit + magic-link guest page + PDF render | DONE |
+| 6 | Telegram bot — overlap alerts + Accept/Revert inline buttons | IN PROGRESS |
+| 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | IN PROGRESS |
+| 8 | Telegram bot — natural-language PDF delivery (check-in + schedule) *(cut-line)* | IN PROGRESS |
 | 9 | Notifications center + R3F hero + polish | TODO |
 | 10 | Business plan + GenAI log + pitch deck | TODO |
 
@@ -51,4 +51,40 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 - Window picker shifts the reference date with presets: Today, +30, +60, +90 days.
 - "Download PDF" button generates a server-side PDF of the current schedule view.
 - Property detail page shows a `<MiniSchedule>` card with current/next guest.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
+
+## Phase 5 — Done when
+
+- Property create/edit forms include check-in template fields (Wi-Fi, lock code, arrival instructions).
+- Host can generate a magic link per reservation; link expires 7 days after checkout.
+- Guest page (`/checkin/<token>`) shows read-only property info + editable multi-guest form.
+- Guest form submission stores guests in `CheckInGuest` rows and marks `submittedAt`.
+- Host-side check-in forms panel lists reservations with status colors (green = submitted, red = link generated, grey = no link).
+- Window picker filters reservations by date range on the check-in forms tab.
+- PDF generation (`/api/checkin/pdf`) renders property info + reservation dates + all guests.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
+
+## Phase 6 — Done when
+
+- When `poll-ical` creates an `AI_PROPOSED` overlap decision, the worker immediately sends a Telegram message to the admin with reservation details and inline Accept/Revert buttons.
+- Pressing **Accept** suppresses the target reservation, marks the decision `acceptedByUser=true`, and edits the message to show "Accepted".
+- Pressing **Revert** restores both reservations to `CONFIRMED`, marks the decision `revertedAt=now`, and edits the message to show "Reverted".
+- All bot actions are audited in `ChatMessage`.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
+
+## Phase 7 — Done when
+
+- `parseShoppingMessage` uses a real AI prompt to extract property name, item names, quantities, and optional IKEA article numbers/URLs from free-text Telegram messages.
+- The bot saves parsed items as `ShoppingItem` rows with `source: 'CHAT'`.
+- The bot replies with a confirmation message listing the property and items saved.
+- Web app has a `shoppingRouter` tRPC router (`list`, `listByProperty`, `updateStatus`, `delete`, `create`).
+- `/orders` page shows all shopping items grouped by property with status toggle (PROPOSED ↔ ORDERED) and delete.
+- Invoice PDF API (`/api/invoice/pdf`) generates a printable invoice per property with item list, unit prices, and totals.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
+
+## Phase 8 — Done when
+
+- `parsePdfRequest` AI task interprets natural-language messages like "check-in form for May 11" or "schedule for this month".
+- The bot resolves the request to a specific reservation or schedule window, calls the web PDF API internally, and sends the PDF buffer as a Telegram document.
+- If the request is ambiguous, the bot asks a clarifying question instead of guessing.
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` all pass.
