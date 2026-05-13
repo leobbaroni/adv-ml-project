@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-Proprietary-red.svg" alt="License"></a>
   <a href="#"><img src="https://img.shields.io/badge/stars-%E2%AD%90%20us%20on%20GitHub-yellow.svg" alt="Stars"></a>
   <a href="#"><img src="https://img.shields.io/badge/pnpm-9+-ff69b4.svg" alt="pnpm"></a>
   <a href="#"><img src="https://img.shields.io/badge/Node-20.18+-green.svg" alt="Node"></a>
@@ -174,7 +174,11 @@ We welcome contributions. Please open an issue first to discuss what you would l
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+**All Rights Reserved.**
+
+This code may not be used, copied, modified, or distributed without explicit written permission from the author.
+
+For licensing inquiries, please contact the repository owner.
 
 ---
 
@@ -189,3 +193,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - [`.agents/knowledge-base/DATA-MODEL.md`](.agents/knowledge-base/DATA-MODEL.md) — Prisma schema intent and entity relationships
 - [`.agents/knowledge-base/ICAL-MERGE-SPEC.md`](.agents/knowledge-base/ICAL-MERGE-SPEC.md) — Technical specification for the overlap engine
 - [`.agents/knowledge-base/DESIGN-LANGUAGE.md`](.agents/knowledge-base/DESIGN-LANGUAGE.md) — Visual design system and UI conventions
+
+---
+
+**⚠️ Legal Notice:** This repository and all its contents are proprietary and confidential. Unauthorized use, copying, modification, or distribution is strictly prohibited without explicit written permission.
