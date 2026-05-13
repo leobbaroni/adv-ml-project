@@ -11,6 +11,7 @@ Rental Buddy was built with an AI-native development methodology. Every phase of
 | Tool / Model | Provider | Purpose | Phase |
 | :--- | :--- | :--- | :--- |
 | **Claude Code (Kimi K2.6)** | OpenCode | Primary coding agent, architecture, debugging | All |
+| **Opus 4.7** | Anthropic | Complex architecture, business logic, deep reasoning | 1, 8, 9 |
 | **Gemini 3.1 Pro** | Google | UI design, visual polish, 3D integration | 9 |
 | **GPT-5.5 / opencode-zen** | OpenCode | Escalation bugs, complex reasoning | 3, 7 |
 | **big-pickle (free tier)** | OpenCode Zen | Runtime AI tasks (overlap resolution, etc.) | 2–8 |
@@ -111,15 +112,16 @@ Our journey yielded several non-obvious insights about productionizing LLMs:
 4.  **Schema validation is your safety net.** Always validate AI output with strict schemas before acting.
 5.  **Free-tier models are sufficient.** For structured extraction tasks, even free-tier models (big-pickle) perform excellently if the prompt is well-engineered.
 6.  **AI is best at ambiguity resolution.** Use deterministic rules for primary data processing; use AI strictly for resolving ambiguity and edge cases.
+7.  **Agentic workflows are the future of software development.** Orchestrating multiple specialized AI agents (orchestrator, UI designer, coder, hard-coder, light-tasks) with clear routing rules produced higher-quality code faster than any single model. The ability to delegate parallel tasks, run verification loops, and maintain context across sessions fundamentally changed how we built this product.
 
 ---
 
-## 8. Future AI Roadmap
+## 8. Future Roadmap
 
-We have identified the next high-impact AI features to deepen our moat:
+We have identified the next strategic milestones to scale Rental Buddy from a powerful tool into an industry-standard platform:
 
-*   **Guest check-in data extraction:** Move from regex stubs to full AI parsing of forwarded guest messages (names, passport data, check-in times).
-*   **Semantic search:** Allow hosts to search their entire reservation history using natural language (e.g., "Show me guests who brought dogs last summer").
-*   **AI-generated property descriptions:** Auto-generate optimized listing copy for Airbnb/Booking.com based on property amenities.
-*   **Predictive maintenance alerts:** Analyze repair request patterns to predict future maintenance needs (e.g., "AC unit #3 is likely to fail based on past tickets").
-*   **Multi-language support:** Real-time AI translation for guest communication and document parsing, allowing hosts to operate cross-border without language barriers.
+*   **Official Portal API Partnerships** — Move beyond iCal polling to direct, real-time API integrations with Airbnb, Booking.com, VRBO, and Interhome. This eliminates sync delays (currently 15 min), enables instant booking confirmations, and unlocks two-way calendar management (push blocks back to platforms).
+
+*   **Portuguese Government Certification (SEF / AT)** — Obtain official certification to submit guest passport data and generate the mandatory **Modelo 30** tax filing automatically from check-in form submissions. This transforms Rental Buddy from a convenience tool into a legal-compliance necessity for every Portuguese short-term rental host.
+
+*   **Property Owner Portal** — Open a secure, read-only dashboard where property owners (not just managers) can view their own calendars, orders, repairs, and financial summaries. This enables Rental Buddy to serve property-management agencies who need to share transparency with their clients.
