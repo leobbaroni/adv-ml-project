@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, Plus, RefreshCw, Trash2, ClipboardCopy, ExternalLink, Download } from 'lucide-react';
 import type { inferRouterOutputs } from '@trpc/server';
 import {
   ICalLabelEnum,
@@ -113,6 +113,11 @@ export default function PropertyDetailPage() {
       </section>
 
       <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tightish mb-3">Check-in forms</h2>
+        <ReservationCheckIns propertyId={id} />
+      </section>
+
+      <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tightish mb-3">Pending overlaps</h2>
         <PendingOverlaps
           overlaps={overlaps.data ?? []}
@@ -167,30 +172,64 @@ function Header({
   }
 
   return (
-    <header className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-3xl font-semibold tracking-tightish truncate">{property.name}</h1>
-        <p className="text-fg-muted mt-1 text-sm">
-          {property.city}, {property.country}
-        </p>
+    <header>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-semibold tracking-tightish truncate">{property.name}</h1>
+          <p className="text-fg-muted mt-1 text-sm">
+            {property.city}, {property.country}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center justify-center h-10 px-4 rounded-btn border border-bg-border text-fg hover:bg-bg-surface transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={confirmDelete}
+            disabled={del.isPending}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
+          >
+            <Trash2 size={14} /> {del.isPending ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex items-center justify-center h-10 px-4 rounded-btn border border-bg-border text-fg hover:bg-bg-surface transition-colors"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={confirmDelete}
-          disabled={del.isPending}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-btn border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60 transition-colors"
-        >
-          <Trash2 size={14} /> {del.isPending ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
+
+      {(property.wifiName || property.wifiPassword || property.lockCode || property.arrivalInstructions) && (
+        <div className="mt-4 surface p-4 space-y-2">
+          <h3 className="text-sm font-semibold tracking-tightish">Check-in template</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            {property.wifiName && (
+              <div>
+                <span className="text-xs text-fg-muted">Wi-Fi</span>
+                <p className="font-medium">{property.wifiName}</p>
+              </div>
+            )}
+            {property.wifiPassword && (
+              <div>
+                <span className="text-xs text-fg-muted">Password</span>
+                <p className="font-medium">{property.wifiPassword}</p>
+              </div>
+            )}
+            {property.lockCode && (
+              <div>
+                <span className="text-xs text-fg-muted">Lock code</span>
+                <p className="font-medium">{property.lockCode}</p>
+              </div>
+            )}
+          </div>
+          {property.arrivalInstructions && (
+            <div>
+              <span className="text-xs text-fg-muted">Arrival instructions</span>
+              <p className="text-sm whitespace-pre-wrap">{property.arrivalInstructions}</p>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
@@ -211,6 +250,10 @@ function EditForm({
     country: property.country,
     ownerName: property.ownerName ?? '',
     ownerContact: property.ownerContact ?? '',
+    wifiName: property.wifiName ?? '',
+    wifiPassword: property.wifiPassword ?? '',
+    lockCode: property.lockCode ?? '',
+    arrivalInstructions: property.arrivalInstructions ?? '',
     notes: property.notes ?? '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -232,6 +275,10 @@ function EditForm({
       country: form.country.trim(),
       ownerName: form.ownerName?.trim() ? form.ownerName.trim() : undefined,
       ownerContact: form.ownerContact?.trim() ? form.ownerContact.trim() : undefined,
+      wifiName: form.wifiName?.trim() ? form.wifiName.trim() : undefined,
+      wifiPassword: form.wifiPassword?.trim() ? form.wifiPassword.trim() : undefined,
+      lockCode: form.lockCode?.trim() ? form.lockCode.trim() : undefined,
+      arrivalInstructions: form.arrivalInstructions?.trim() ? form.arrivalInstructions.trim() : undefined,
       notes: form.notes?.trim() ? form.notes.trim() : undefined,
     };
     const parsed = PropertyCreateSchema.safeParse(candidate);
@@ -271,7 +318,23 @@ function EditForm({
         <FormField label="Owner contact (optional)" error={errors.ownerContact}>
           <input value={form.ownerContact ?? ''} onChange={(e) => set('ownerContact', e.target.value)} className={inputClass} />
         </FormField>
+        <FormField label="Wi-Fi name (optional)" error={errors.wifiName}>
+          <input value={form.wifiName ?? ''} onChange={(e) => set('wifiName', e.target.value)} className={inputClass} />
+        </FormField>
+        <FormField label="Wi-Fi password (optional)" error={errors.wifiPassword}>
+          <input value={form.wifiPassword ?? ''} onChange={(e) => set('wifiPassword', e.target.value)} className={inputClass} />
+        </FormField>
+        <FormField label="Lock code (optional)" error={errors.lockCode}>
+          <input value={form.lockCode ?? ''} onChange={(e) => set('lockCode', e.target.value)} className={inputClass} />
+        </FormField>
       </div>
+      <FormField label="Arrival instructions (optional)" error={errors.arrivalInstructions}>
+        <textarea
+          value={form.arrivalInstructions ?? ''}
+          onChange={(e) => set('arrivalInstructions', e.target.value)}
+          className={`${inputClass} min-h-[80px] resize-y`}
+        />
+      </FormField>
       <FormField label="Notes (optional)" error={errors.notes}>
         <textarea
           value={form.notes ?? ''}
@@ -512,4 +575,105 @@ function formatRelative(d: Date | null): string {
   if (hr < 24) return `${hr}h ago`;
   const day = Math.round(hr / 24);
   return `${day}d ago`;
+}
+
+function fmtDate(d: Date | null | undefined): string {
+  if (!d) return '—';
+  const date = new Date(d);
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function ReservationCheckIns({ propertyId }: { propertyId: string }) {
+  const utils = trpc.useUtils();
+  const list = trpc.checkin.listByProperty.useQuery({ propertyId });
+  const generate = trpc.checkin.generateLink.useMutation({
+    onSuccess: () => {
+      void utils.checkin.listByProperty.invalidate({ propertyId });
+    },
+  });
+
+  if (list.isLoading) {
+    return (
+      <div className="surface p-4">
+        <p className="text-fg-muted text-sm">Loading check-ins…</p>
+      </div>
+    );
+  }
+
+  const reservations = list.data ?? [];
+  if (reservations.length === 0) {
+    return (
+      <div className="surface p-4">
+        <p className="text-fg-muted text-sm">No upcoming reservations.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="surface p-4 space-y-3">
+      {reservations.map((r) => (
+        <div key={r.id} className="flex items-start justify-between gap-4 py-3 border-b border-bg-border last:border-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{r.summary}</p>
+            <p className="text-xs text-fg-muted tabular-nums">
+              {fmtDate(r.startDate)} → {fmtDate(r.endDate)}
+            </p>
+            {r.checkInForm?.submittedAt ? (
+              <p className="text-xs text-emerald-600 mt-1">Submitted {fmtDate(r.checkInForm.submittedAt)}</p>
+            ) : r.checkInForm?.guestLinkToken ? (
+              <p className="text-xs text-amber-600 mt-1">Link generated, not submitted</p>
+            ) : (
+              <p className="text-xs text-fg-muted mt-1">No link yet</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {r.checkInForm?.guestLinkToken && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/checkin/${r.checkInForm!.guestLinkToken}`;
+                    void navigator.clipboard.writeText(url);
+                  }}
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-btn border border-bg-border text-fg hover:bg-bg-surface transition-colors"
+                  title="Copy magic link"
+                >
+                  <ClipboardCopy size={14} /> <span className="text-xs">Copy link</span>
+                </button>
+                <a
+                  href={`/checkin/${r.checkInForm.guestLinkToken}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-btn border border-bg-border text-fg hover:bg-bg-surface transition-colors"
+                  title="Preview guest page"
+                >
+                  <ExternalLink size={14} /> <span className="text-xs">Preview</span>
+                </a>
+              </>
+            )}
+            <a
+              href={`/api/checkin/pdf?reservationId=${r.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-btn border border-bg-border text-fg hover:bg-bg-surface transition-colors"
+              title="Download PDF"
+            >
+              <Download size={14} /> <span className="text-xs">PDF</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => generate.mutate({ reservationId: r.id })}
+              disabled={generate.isPending}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-btn bg-accent text-bg font-medium hover:bg-amber-400 disabled:opacity-60 transition-colors"
+            >
+              {r.checkInForm?.guestLinkToken ? 'Regenerate link' : 'Generate link'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

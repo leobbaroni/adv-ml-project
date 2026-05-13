@@ -25,6 +25,10 @@ export const PropertyCreateSchema = z.object({
   country: z.string().min(1),
   ownerName: z.string().optional(),
   ownerContact: z.string().optional(),
+  wifiName: z.string().optional(),
+  wifiPassword: z.string().optional(),
+  lockCode: z.string().optional(),
+  arrivalInstructions: z.string().optional(),
   notes: z.string().optional(),
 });
 export type PropertyCreateInput = z.infer<typeof PropertyCreateSchema>;

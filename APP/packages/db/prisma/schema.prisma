@@ -92,11 +92,15 @@ model Property {
   address       String
   city          String
   country       String
-  ownerName     String?
-  ownerContact  String?
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ownerName           String?
+  ownerContact        String?
+  wifiName            String?
+  wifiPassword        String?
+  lockCode            String?
+  arrivalInstructions String?  @db.Text
+  notes               String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   icalSources   ICalSource[]
   reservations  Reservation[]

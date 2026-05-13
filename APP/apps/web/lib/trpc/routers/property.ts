@@ -35,6 +35,22 @@ export const propertyRouter = router({
       return ctx.prisma.property.update({ where: { id }, data });
     }),
 
+  checkInTemplate: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const property = await ctx.prisma.property.findUnique({
+        where: { id: input.id },
+        select: {
+          wifiName: true,
+          wifiPassword: true,
+          lockCode: true,
+          arrivalInstructions: true,
+        },
+      });
+      if (!property) throw new TRPCError({ code: 'NOT_FOUND' });
+      return property;
+    }),
+
   delete: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
