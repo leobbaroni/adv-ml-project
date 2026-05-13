@@ -92,7 +92,7 @@ export type PdfRequest = z.infer<typeof PdfRequestSchema>;
 // --- Repair estimate ---
 export const RepairLineItemSchema = z.object({
   name: z.string().min(1),
-  cost: z.number().positive(),
+  cost: z.coerce.number().positive(),
   category: z.enum(['MATERIALS', 'LABOR', 'OTHER']),
 });
 export type RepairLineItem = z.infer<typeof RepairLineItemSchema>;

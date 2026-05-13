@@ -48,11 +48,11 @@ function isPdfIntent(text: string): boolean {
 }
 
 function isShoppingIntent(text: string): boolean {
-  return /\b(buy|order|get|purchase|add)\b/i.test(text) && !isPdfIntent(text);
+  return /\b(buy|order|get|purchase|add)\b/i.test(text) && !isPdfIntent(text) && !isRepairIntent(text);
 }
 
 function isRepairIntent(text: string): boolean {
-  return /\b(repair|fix|broken|leak|damage|replace)\b/i.test(text);
+  return /\b(repair|fix|broken|leak|leaking|leaky|damage|damaged|replace|quote|estimate|budget)\b/i.test(text);
 }
 
 function normalizeText(value: string): string {
@@ -142,6 +142,66 @@ function parseScheduleFallback(
     propertyId: property?.id ?? null,
     referenceDate: firstDayOfCurrentMonthIso(),
     windowDays: 30,
+  };
+}
+
+function buildRepairLineItems(description: string) {
+  const normalized = normalizeText(description);
+
+  if (/\b(door|hinge|handle|lock)\b/.test(normalized)) {
+    return [
+      { name: 'Door hardware and materials', cost: 35, category: 'MATERIALS' as const },
+      { name: 'Handyman labor 2h', cost: 70, category: 'LABOR' as const },
+      { name: 'Transport and call-out fee', cost: 15, category: 'OTHER' as const },
+    ];
+  }
+
+  if (/\b(leak|leaking|leaky|faucet|tap|pipe|plumb)\b/.test(normalized)) {
+    return [
+      { name: 'Plumbing parts and sealant', cost: 30, category: 'MATERIALS' as const },
+      { name: 'Plumber labor 2h', cost: 90, category: 'LABOR' as const },
+      { name: 'Call-out fee', cost: 20, category: 'OTHER' as const },
+    ];
+  }
+
+  if (/\b(window|glass|blind|shutter)\b/.test(normalized)) {
+    return [
+      { name: 'Replacement parts/materials', cost: 55, category: 'MATERIALS' as const },
+      { name: 'Technician labor 2h', cost: 80, category: 'LABOR' as const },
+      { name: 'Transport and disposal', cost: 20, category: 'OTHER' as const },
+    ];
+  }
+
+  return [
+    { name: 'Materials allowance', cost: 40, category: 'MATERIALS' as const },
+    { name: 'Handyman labor 2h', cost: 70, category: 'LABOR' as const },
+    { name: 'Transport and contingency', cost: 20, category: 'OTHER' as const },
+  ];
+}
+
+function parseRepairFallback(text: string, properties: Array<{ id: string; name: string }>) {
+  const property = findPropertyInText(text, properties);
+  if (!property) return { propertyId: null, description: '', lineItems: [] };
+
+  const normalizedPropertyName = normalizeText(property.name);
+  const descriptionWords = text
+    .split(/\s+/)
+    .filter((word) => {
+      const normalizedWord = normalizeText(word);
+      return (
+        normalizedWord &&
+        !/^(repair|fix|broken|leak|leaking|leaky|damage|damaged|replace|quote|estimate|budget|for|at|in|the|a|an|please)$/.test(
+          normalizedWord,
+        ) &&
+        !normalizedPropertyName.split(' ').includes(normalizedWord)
+      );
+    });
+  const description = descriptionWords.join(' ').trim() || 'General repair';
+
+  return {
+    propertyId: property.id,
+    description,
+    lineItems: buildRepairLineItems(description),
   };
 }
 
@@ -408,7 +468,61 @@ export async function startTelegramBot() {
       select: { id: true, name: true },
     });
 
-    // 2. Try shopping
+    // 2. Try repair
+    if (isRepairIntent(text)) {
+      try {
+        logger.info({ text, propertyCount: properties.length }, '[telegram] trying repair parse');
+        const aiRepairResult = await parseRepairMessage({ text, properties });
+        const aiProperty = properties.find((p) => p.id === aiRepairResult.propertyId);
+        const repairResult =
+          aiRepairResult.lineItems.length > 0 && aiProperty
+            ? aiRepairResult
+            : parseRepairFallback(text, properties);
+        logger.info({ repairResult }, '[telegram] repair parse result');
+
+        if (repairResult.lineItems.length > 0) {
+          const property = properties.find((p) => p.id === repairResult.propertyId);
+          if (!property) {
+            await ctx.reply("I couldn't find that property.");
+            return;
+          }
+
+          const total = repairResult.lineItems.reduce((sum, li) => sum + li.cost, 0);
+
+          await prisma.repairEstimate.create({
+            data: {
+              propertyId: property.id,
+              description: repairResult.description,
+              lineItems: repairResult.lineItems,
+              source: 'CHAT',
+              status: 'PROPOSED',
+            },
+          });
+
+          const lineText = repairResult.lineItems
+            .map((li) => `- ${li.name}: €${li.cost.toFixed(2)} (${li.category})`)
+            .join('\n');
+
+          await ctx.reply(
+            `Repair estimate for ${property.name}:\n${repairResult.description}\n\n${lineText}\n\nTotal: €${total.toFixed(2)}`,
+          );
+
+          await prisma.chatMessage.create({
+            data: {
+              direction: 'OUTBOUND',
+              telegramUserId,
+              text: `Repair estimate created for ${property.name}`,
+              aiAction: 'REPAIR_CREATED',
+            },
+          });
+          return;
+        }
+      } catch (err) {
+        logger.error({ err }, '[telegram] repair parsing failed');
+      }
+    }
+
+    // 3. Try shopping
     if (isShoppingIntent(text)) {
       try {
         logger.info({ text, propertyCount: properties.length }, '[telegram] trying shopping parse');
@@ -483,55 +597,6 @@ export async function startTelegramBot() {
         }
       } catch (err) {
         logger.error({ err }, '[telegram] shopping parsing failed');
-      }
-    }
-
-    // 3. Try repair
-    if (isRepairIntent(text)) {
-      try {
-        logger.info({ text, propertyCount: properties.length }, '[telegram] trying repair parse');
-        const repairResult = await parseRepairMessage({ text, properties });
-        logger.info({ repairResult }, '[telegram] repair parse result');
-
-        if (repairResult.lineItems.length > 0) {
-          const property = properties.find((p) => p.id === repairResult.propertyId);
-          if (!property) {
-            await ctx.reply("I couldn't find that property.");
-            return;
-          }
-
-          const total = repairResult.lineItems.reduce((sum, li) => sum + li.cost, 0);
-
-          await prisma.repairEstimate.create({
-            data: {
-              propertyId: property.id,
-              description: repairResult.description,
-              lineItems: repairResult.lineItems,
-              source: 'CHAT',
-              status: 'PROPOSED',
-            },
-          });
-
-          const lineText = repairResult.lineItems
-            .map((li) => `- ${li.name}: €${li.cost.toFixed(2)} (${li.category})`)
-            .join('\n');
-
-          await ctx.reply(
-            `Repair estimate for ${property.name}:\n${repairResult.description}\n\n${lineText}\n\nTotal: €${total.toFixed(2)}`,
-          );
-
-          await prisma.chatMessage.create({
-            data: {
-              direction: 'OUTBOUND',
-              telegramUserId,
-              text: `Repair estimate created for ${property.name}`,
-              aiAction: 'REPAIR_CREATED',
-            },
-          });
-          return;
-        }
-      } catch (err) {
-        logger.error({ err }, '[telegram] repair parsing failed');
       }
     }
 

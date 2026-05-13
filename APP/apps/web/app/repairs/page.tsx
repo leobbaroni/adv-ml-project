@@ -12,6 +12,8 @@ const STATUS_FLOW: Array<'PROPOSED' | 'QUOTED' | 'APPROVED' | 'COMPLETED'> = [
   'COMPLETED',
 ];
 
+type RepairCategory = 'MATERIALS' | 'LABOR' | 'OTHER';
+
 export default function RepairsPage() {
   const utils = trpc.useUtils();
   const list = trpc.repair.list.useQuery();
@@ -21,7 +23,7 @@ export default function RepairsPage() {
   const [form, setForm] = useState({
     propertyId: '',
     description: '',
-    lineItems: [{ name: '', cost: '', category: 'MATERIALS' as const }],
+    lineItems: [{ name: '', cost: '', category: 'MATERIALS' as RepairCategory }],
   });
 
   const create = trpc.repair.create.useMutation({
@@ -237,7 +239,7 @@ function PropertyCard({
     id: string;
     propertyId: string;
     description: string;
-    lineItems: Array<{ name: string; cost: number; category: string }>;
+    lineItems: Array<{ name: string; cost: number; category: RepairCategory }>;
     status: 'PROPOSED' | 'QUOTED' | 'APPROVED' | 'COMPLETED';
     source: string;
   }>;
@@ -264,7 +266,7 @@ function EstimateCard({
     id: string;
     propertyId: string;
     description: string;
-    lineItems: Array<{ name: string; cost: number; category: string }>;
+    lineItems: Array<{ name: string; cost: number; category: RepairCategory }>;
     status: 'PROPOSED' | 'QUOTED' | 'APPROVED' | 'COMPLETED';
     source: string;
   };
@@ -278,10 +280,6 @@ function EstimateCard({
       utils.repair.list.invalidate();
       setEditing(false);
     },
-  });
-
-  const updateStatus = trpc.repair.updateStatus.useMutation({
-    onSuccess: () => utils.repair.list.invalidate(),
   });
 
   const del = trpc.repair.delete.useMutation({
@@ -371,7 +369,7 @@ function EstimateCard({
                 value={li.category}
                 onChange={(e) =>
                   setEditItems((prev) =>
-                    prev.map((p, i) => (i === index ? { ...p, category: e.target.value } : p)),
+                    prev.map((p, i) => (i === index ? { ...p, category: e.target.value as RepairCategory } : p)),
                   )
                 }
                 className="w-28 h-8 px-2 text-xs rounded bg-bg border border-bg-border focus:border-accent"

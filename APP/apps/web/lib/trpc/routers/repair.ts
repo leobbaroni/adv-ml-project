@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { RepairLineItem } from '@app/shared';
 import { router, publicProcedure } from '../trpc';
 
 export const repairRouter = router({
@@ -9,7 +10,7 @@ export const repairRouter = router({
     });
     return items.map((item) => ({
       ...item,
-      lineItems: item.lineItems as Array<{ name: string; cost: number; category: string }>,
+      lineItems: item.lineItems as RepairLineItem[],
     }));
   }),
 
@@ -23,7 +24,7 @@ export const repairRouter = router({
       });
       return items.map((item) => ({
         ...item,
-        lineItems: item.lineItems as Array<{ name: string; cost: number; category: string }>,
+        lineItems: item.lineItems as RepairLineItem[],
       }));
     }),
 
@@ -54,7 +55,7 @@ export const repairRouter = router({
       });
       return {
         ...item,
-        lineItems: item.lineItems as Array<{ name: string; cost: number; category: string }>,
+        lineItems: item.lineItems as RepairLineItem[],
       };
     }),
 
@@ -81,7 +82,7 @@ export const repairRouter = router({
       });
       return {
         ...item,
-        lineItems: item.lineItems as Array<{ name: string; cost: number; category: string }>,
+        lineItems: item.lineItems as RepairLineItem[],
       };
     }),
 
@@ -100,7 +101,7 @@ export const repairRouter = router({
       });
       return {
         ...item,
-        lineItems: item.lineItems as Array<{ name: string; cost: number; category: string }>,
+        lineItems: item.lineItems as RepairLineItem[],
       };
     }),
 
