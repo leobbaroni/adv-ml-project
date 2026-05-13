@@ -1,17 +1,18 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
-
-interface MiniScheduleReservation {
+interface FlatReservation {
+  id: string;
+  property: { id: string; name: string };
   summary: string;
   startDate: Date;
   endDate: Date;
+  sourceLabel: string;
+  status: string;
+  nextCheckIn: Date | null;
 }
 
 interface MiniScheduleProps {
-  current: MiniScheduleReservation | null;
-  next: MiniScheduleReservation | null;
-  hasOverlap: boolean;
+  reservations: FlatReservation[];
   loading?: boolean;
 }
 
@@ -24,16 +25,7 @@ function formatDate(d: Date | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-function daysBetween(a: Date, b: Date): number {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const start = new Date(a);
-  const end = new Date(b);
-  start.setUTCHours(0, 0, 0, 0);
-  end.setUTCHours(0, 0, 0, 0);
-  return Math.round((end.getTime() - start.getTime()) / msPerDay);
-}
-
-export function MiniSchedule({ current, next, hasOverlap, loading }: MiniScheduleProps) {
+export function MiniSchedule({ reservations, loading }: MiniScheduleProps) {
   if (loading) {
     return (
       <div className="surface p-4">
@@ -42,68 +34,38 @@ export function MiniSchedule({ current, next, hasOverlap, loading }: MiniSchedul
     );
   }
 
-  const turnover =
-    current && next ? daysBetween(current.endDate, next.startDate) : null;
+  const upcoming = reservations.slice(0, 3);
 
-  const turnoverDisplay =
-    turnover === null || turnover === 0 ? '—' : `${turnover}d`;
-
-  const turnoverClass =
-    turnover === null || turnover === 0
-      ? 'text-fg-muted'
-      : turnover > 0
-        ? 'text-ok'
-        : 'text-danger';
+  if (upcoming.length === 0) {
+    return (
+      <div className="surface p-4">
+        <p className="text-fg-muted text-sm">No upcoming reservations</p>
+      </div>
+    );
+  }
 
   return (
     <div className="surface p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold tracking-tightish">Schedule</h3>
-        {hasOverlap && (
-          <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-danger/30 bg-danger/10 text-danger text-[10px] font-medium tracking-wider">
-            <AlertTriangle size={12} />
-            Overlap
-          </span>
-        )}
-      </div>
-
+      <h3 className="text-sm font-semibold tracking-tightish">Upcoming reservations</h3>
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-fg-muted">Current guest</span>
-          <span className="text-fg truncate ml-4">
-            {current ? current.summary : '—'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-fg-muted">Check-out</span>
-          <span className="text-fg tabular-nums">
-            {formatDate(current?.endDate)}
-          </span>
-        </div>
-
-        <div className="h-px bg-bg-border" />
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-fg-muted">Next guest</span>
-          <span className="text-fg truncate ml-4">
-            {next ? next.summary : '—'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-fg-muted">Check-in</span>
-          <span className="text-fg tabular-nums">
-            {formatDate(next?.startDate)}
-          </span>
-        </div>
-
-        <div className="h-px bg-bg-border" />
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-fg-muted">Turnover</span>
-          <span className={['font-medium tabular-nums', turnoverClass].join(' ')}>
-            {turnoverDisplay}
-          </span>
-        </div>
+        {upcoming.map((r) => {
+          const isSuppressed = r.status === 'SUPPRESSED';
+          return (
+            <div key={r.id} className="flex items-center justify-between text-sm">
+              <div className="min-w-0">
+                <p className={['truncate', isSuppressed ? 'line-through text-fg-muted' : 'text-fg'].join(' ')}>
+                  {r.summary}
+                </p>
+                <p className="text-xs text-fg-muted tabular-nums">
+                  {formatDate(r.startDate)} → {formatDate(r.endDate)}
+                </p>
+              </div>
+              <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted ml-3 shrink-0">
+                {r.sourceLabel}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

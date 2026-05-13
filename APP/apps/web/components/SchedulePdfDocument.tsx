@@ -6,16 +6,19 @@ import {
   StyleSheet,
 } from '@react-pdf/renderer';
 
-interface ScheduleRow {
-  property: { id: string; name: string; city: string; country: string };
-  current: { summary: string; endDate: Date } | null;
-  next: { summary: string; startDate: Date } | null;
-  turnoverDays: number | null;
-  hasOverlap: boolean;
+interface FlatReservation {
+  id: string;
+  property: { id: string; name: string };
+  summary: string;
+  startDate: Date;
+  endDate: Date;
+  sourceLabel: string;
+  status: string;
+  nextCheckIn: Date | null;
 }
 
 interface Props {
-  rows: ScheduleRow[];
+  rows: FlatReservation[];
   referenceDate: Date;
   generatedAt: Date;
 }
@@ -26,7 +29,6 @@ const GREY_200 = '#e5e7eb';
 const GREY_400 = '#9ca3af';
 const GREY_500 = '#6b7280';
 const GREY_900 = '#111827';
-const RED_500 = '#ef4444';
 
 const styles = StyleSheet.create({
   page: {
@@ -84,10 +86,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     fontFamily: 'Helvetica-Bold',
   },
-  overlapRow: {
-    borderLeftWidth: 3,
-    borderLeftColor: RED_500,
-  },
   muted: {
     color: GREY_400,
   },
@@ -96,15 +94,20 @@ const styles = StyleSheet.create({
     color: GREY_500,
     marginTop: 1,
   },
+  suppressed: {
+    opacity: 0.5,
+  },
+  strike: {
+    textDecoration: 'line-through',
+  },
 });
 
 const COLS = [
-  { key: 'property', width: '22%', label: 'Property' },
-  { key: 'currentGuest', width: '19%', label: 'Current Guest' },
-  { key: 'checkout', width: '12%', label: 'Check-out' },
-  { key: 'nextGuest', width: '19%', label: 'Next Guest' },
-  { key: 'checkin', width: '12%', label: 'Check-in' },
-  { key: 'turnover', width: '10%', label: 'Turnover' },
+  { key: 'property', width: '28%', label: 'Property' },
+  { key: 'checkin', width: '16%', label: 'Check-in' },
+  { key: 'checkout', width: '16%', label: 'Check-out' },
+  { key: 'nextCheckin', width: '16%', label: 'Next Check-in' },
+  { key: 'source', width: '24%', label: 'Source' },
 ] as const;
 
 function fmt(date: Date | string | null | undefined): string {
@@ -141,7 +144,7 @@ export default function SchedulePdfDocument({
                   {
                     width: col.width,
                     backgroundColor:
-                      col.key === 'checkin' ? GREY_50 : GREY_100,
+                      col.key === 'nextCheckin' ? GREY_50 : GREY_100,
                   },
                 ]}
               >
@@ -151,69 +154,65 @@ export default function SchedulePdfDocument({
           </View>
 
           {/* Rows */}
-          {rows.map((row, index) => (
-            <View
-              key={index}
-              style={[
-                styles.row,
-                row.hasOverlap ? styles.overlapRow : {},
-              ]}
-            >
-              {/* Property */}
-              <View style={[styles.cell, { width: COLS[0].width }]}>
-                <Text>{row.property.name}</Text>
-                <Text style={styles.smallMuted}>
-                  {row.property.city}, {row.property.country}
-                </Text>
-              </View>
-
-              {/* Current Guest */}
-              <View style={[styles.cell, { width: COLS[1].width }]}>
-                {row.current ? (
-                  <Text>{row.current.summary}</Text>
-                ) : (
-                  <Text style={styles.muted}>—</Text>
-                )}
-              </View>
-
-              {/* Check-out */}
-              <View style={[styles.cell, { width: COLS[2].width }]}>
-                <Text>{fmt(row.current?.endDate)}</Text>
-              </View>
-
-              {/* Next Guest */}
-              <View style={[styles.cell, { width: COLS[3].width }]}>
-                {row.next ? (
-                  <Text>{row.next.summary}</Text>
-                ) : (
-                  <Text style={styles.muted}>—</Text>
-                )}
-              </View>
-
-              {/* Check-in */}
+          {rows.map((row, index) => {
+            const isSuppressed = row.status === 'SUPPRESSED';
+            return (
               <View
+                key={index}
                 style={[
-                  styles.cell,
-                  { width: COLS[4].width, backgroundColor: GREY_50 },
+                  styles.row,
+                  isSuppressed ? styles.suppressed : {},
                 ]}
               >
-                <Text>{fmt(row.next?.startDate)}</Text>
-              </View>
+                {/* Property */}
+                <View style={[styles.cell, { width: COLS[0].width }]}>
+                  <Text style={isSuppressed ? styles.strike : undefined}>
+                    {row.property.name}
+                  </Text>
+                  <Text style={styles.smallMuted}>
+                    {row.summary}
+                  </Text>
+                </View>
 
-              {/* Turnover */}
-              <View style={[styles.cell, { width: COLS[5].width }]}>
-                <Text>
-                  {row.turnoverDays !== null ? `${row.turnoverDays}d` : '—'}
-                </Text>
+                {/* Check-in */}
+                <View style={[styles.cell, { width: COLS[1].width }]}>
+                  <Text style={isSuppressed ? styles.strike : undefined}>
+                    {fmt(row.startDate)}
+                  </Text>
+                </View>
+
+                {/* Check-out */}
+                <View style={[styles.cell, { width: COLS[2].width }]}>
+                  <Text style={isSuppressed ? styles.strike : undefined}>
+                    {fmt(row.endDate)}
+                  </Text>
+                </View>
+
+                {/* Next Check-in */}
+                <View
+                  style={[
+                    styles.cell,
+                    { width: COLS[3].width, backgroundColor: GREY_50 },
+                  ]}
+                >
+                  <Text>{fmt(row.nextCheckIn)}</Text>
+                </View>
+
+                {/* Source */}
+                <View style={[styles.cell, { width: COLS[4].width }]}>
+                  <Text style={isSuppressed ? styles.muted : undefined}>
+                    {row.sourceLabel}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {rows.length === 0 && (
           <View style={{ marginTop: 24, alignItems: 'center' }}>
             <Text style={{ color: GREY_400 }}>
-              No properties or reservations found for this date.
+              No reservations found for this date.
             </Text>
           </View>
         )}

@@ -24,7 +24,7 @@ export default function SchedulePage() {
     return d;
   }, [activeDays]);
 
-  const schedule = trpc.schedule.global.useQuery({ referenceDate });
+  const schedule = trpc.schedule.list.useQuery({ referenceDate });
   const pdfUrl = `/api/schedule/pdf?referenceDate=${formatISODate(referenceDate)}`;
 
   return (

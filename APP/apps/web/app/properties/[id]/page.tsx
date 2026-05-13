@@ -107,9 +107,7 @@ export default function PropertyDetailPage() {
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tightish mb-3">Schedule</h2>
         <MiniSchedule
-          current={schedule.data?.current ?? null}
-          next={schedule.data?.next ?? null}
-          hasOverlap={schedule.data?.hasOverlap ?? false}
+          reservations={schedule.data ?? []}
           loading={schedule.isLoading}
         />
       </section>

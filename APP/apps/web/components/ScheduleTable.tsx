@@ -1,30 +1,18 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
-
-interface ScheduleReservation {
+interface FlatReservation {
   id: string;
+  property: { id: string; name: string };
   summary: string;
   startDate: Date;
   endDate: Date;
-}
-
-interface ScheduleProperty {
-  id: string;
-  name: string;
-  city: string;
-  country: string;
-}
-
-export interface ScheduleRowData {
-  property: ScheduleProperty;
-  current: ScheduleReservation | null;
-  next: ScheduleReservation | null;
-  hasOverlap: boolean;
+  sourceLabel: string;
+  status: string;
+  nextCheckIn: Date | null;
 }
 
 interface ScheduleTableProps {
-  rows: ScheduleRowData[];
+  rows: FlatReservation[];
   loading?: boolean;
 }
 
@@ -37,14 +25,12 @@ function formatDate(d: Date | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-function daysBetween(a: Date, b: Date): number {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const start = new Date(a);
-  const end = new Date(b);
-  // Normalize to UTC midnight
-  start.setUTCHours(0, 0, 0, 0);
-  end.setUTCHours(0, 0, 0, 0);
-  return Math.round((end.getTime() - start.getTime()) / msPerDay);
+function SourceBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center h-6 px-2 rounded-full bg-bg border border-bg-border text-[10px] font-medium tracking-wider text-fg-muted">
+      {label}
+    </span>
+  );
 }
 
 export function ScheduleTable({ rows, loading }: ScheduleTableProps) {
@@ -56,7 +42,7 @@ export function ScheduleTable({ rows, loading }: ScheduleTableProps) {
     return (
       <div className="surface p-8 text-center">
         <p className="text-fg-muted text-sm">
-          No properties with reservations in this window
+          No reservations in this window
         </p>
       </div>
     );
@@ -71,88 +57,58 @@ export function ScheduleTable({ rows, loading }: ScheduleTableProps) {
               Property
             </th>
             <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap">
-              Current Guest
+              Check-in
             </th>
             <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap">
               Check-out
             </th>
-            <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap">
-              Next Guest
-            </th>
             <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap bg-bg-surface">
-              Check-in
+              Next Check-in
             </th>
             <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap">
-              Turnover
-            </th>
-            <th className="text-xs text-fg-muted font-medium px-4 py-3 whitespace-nowrap">
-              Status
+              Source
             </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
-            const turnover =
-              row.current && row.next
-                ? daysBetween(row.current.endDate, row.next.startDate)
-                : null;
-
-            const turnoverDisplay =
-              turnover === null || turnover === 0 ? '—' : `${turnover}d`;
-
-            const turnoverClass =
-              turnover === null || turnover === 0
-                ? 'text-fg-muted'
-                : turnover > 0
-                  ? 'text-ok'
-                  : 'text-danger';
+            const isSuppressed = row.status === 'SUPPRESSED';
 
             return (
               <tr
-                key={row.property.id}
+                key={row.id}
                 className={[
                   'border-b border-bg-border',
-                  row.hasOverlap ? 'border-l-2 border-l-danger' : '',
+                  isSuppressed ? 'opacity-50' : '',
                 ].join(' ')}
               >
                 <td className="px-4 py-3 align-top">
                   <p className="text-sm font-medium text-fg">{row.property.name}</p>
                   <p className="text-xs text-fg-muted">
-                    {row.property.city}, {row.property.country}
+                    {isSuppressed ? (
+                      <span className="line-through">{row.summary}</span>
+                    ) : (
+                      row.summary
+                    )}
                   </p>
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <p className="text-sm text-fg">
-                    {row.current ? row.current.summary : '—'}
+                  <p className={['text-sm tabular-nums', isSuppressed ? 'line-through text-fg-muted' : 'text-fg'].join(' ')}>
+                    {formatDate(row.startDate)}
                   </p>
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <p className="text-sm text-fg tabular-nums">
-                    {formatDate(row.current?.endDate)}
-                  </p>
-                </td>
-                <td className="px-4 py-3 align-top">
-                  <p className="text-sm text-fg">
-                    {row.next ? row.next.summary : '—'}
+                  <p className={['text-sm tabular-nums', isSuppressed ? 'line-through text-fg-muted' : 'text-fg'].join(' ')}>
+                    {formatDate(row.endDate)}
                   </p>
                 </td>
                 <td className="px-4 py-3 align-top bg-bg-surface">
                   <p className="text-sm text-fg tabular-nums">
-                    {formatDate(row.next?.startDate)}
+                    {formatDate(row.nextCheckIn)}
                   </p>
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <span className={['text-sm font-medium tabular-nums', turnoverClass].join(' ')}>
-                    {turnoverDisplay}
-                  </span>
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {row.hasOverlap && (
-                    <span className="inline-flex items-center gap-1 text-xs text-danger">
-                      <AlertTriangle size={14} />
-                      <span className="font-medium">Overlap</span>
-                    </span>
-                  )}
+                  <SourceBadge label={row.sourceLabel} />
                 </td>
               </tr>
             );

@@ -4,13 +4,30 @@
 import { resolveOverlap } from '@app/ai';
 import { prisma } from '@app/db';
 import { detectOverlaps, fetchICal, parseICal } from '@app/ical';
-import type { PollIcalJob } from '@app/shared';
+import { JobName, type PollIcalJob } from '@app/shared';
+import { getQueue } from '../queue.js';
 import { logger } from '../logger.js';
 
 export async function schedulePollIcal() {
   const intervalMin = Number(process.env.ICAL_POLL_INTERVAL_MINUTES ?? 15);
-  logger.info({ intervalMin }, '[poll-ical] scheduled (stub)');
-  // Phase 2: queue.add('poll-ical', {}, { repeat: { every: intervalMin * 60_000 } })
+
+  try {
+    const sources = await prisma.iCalSource.findMany({ where: { active: true } });
+    const queue = getQueue();
+
+    for (const source of sources) {
+      await queue.add(JobName.POLL_ICAL, { sourceId: source.id }, {
+        repeat: { every: intervalMin * 60_000 },
+        jobId: `poll-ical-${source.id}`,
+        removeOnComplete: 10,
+        removeOnFail: 10,
+      });
+    }
+
+    logger.info({ intervalMin, count: sources.length }, '[poll-ical] scheduled');
+  } catch (err) {
+    logger.error({ err }, '[poll-ical] schedule failed');
+  }
 }
 
 export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {

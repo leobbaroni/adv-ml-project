@@ -1,4 +1,4 @@
-// Schedule router: global dashboard and per-property schedule rows.
+// Schedule router: flat list of reservations sorted by check-in date.
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
@@ -6,62 +6,30 @@ import { router, publicProcedure } from '../trpc';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-interface ScheduleProperty {
+interface FlatReservation {
   id: string;
-  name: string;
-  city: string;
-  country: string;
-}
-
-interface ScheduleReservation {
-  id: string;
-  propertyId: string;
-  sourceId: string;
-  externalUid: string;
+  property: { id: string; name: string };
   summary: string;
   startDate: Date;
   endDate: Date;
+  sourceLabel: string;
   status: string;
-  suppressionReason: string | null;
-  lastSeenAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  nextCheckIn: Date | null;
 }
 
-function buildRow(
-  property: ScheduleProperty,
-  reservations: ScheduleReservation[],
-  overlaps: { id: string }[],
-  referenceDate: Date,
-) {
-  const refTime = referenceDate.getTime();
+function computeNextCheckIn(
+  reservation: { id: string; endDate: Date },
+  allPropertyReservations: { id: string; startDate: Date; endDate: Date }[],
+): Date | null {
+  const next = allPropertyReservations
+    .filter((r) => r.id !== reservation.id && r.startDate.getTime() > reservation.endDate.getTime())
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0];
 
-  const current = reservations.find(
-    (r) => r.startDate.getTime() <= refTime && r.endDate.getTime() > refTime,
-  ) ?? null;
-
-  const nextThreshold = current ? current.endDate.getTime() : refTime;
-  const next =
-    reservations.find(
-      (r) => r.startDate.getTime() >= nextThreshold && r.id !== current?.id,
-    ) ?? null;
-
-  const turnoverDays =
-    current && next
-      ? Math.floor((next.startDate.getTime() - current.endDate.getTime()) / MS_PER_DAY)
-      : null;
-
-  return {
-    property,
-    current,
-    next,
-    turnoverDays,
-    hasOverlap: overlaps.length > 0,
-  };
+  return next?.startDate ?? null;
 }
 
 export const scheduleRouter = router({
-  global: publicProcedure
+  list: publicProcedure
     .input(
       z.object({
         referenceDate: z.coerce.date().optional(),
@@ -72,29 +40,37 @@ export const scheduleRouter = router({
       const referenceDate = input.referenceDate ?? new Date();
       const cutoff = new Date(referenceDate.getTime() + input.windowDays * MS_PER_DAY);
 
-      const properties = await ctx.prisma.property.findMany({
+      const reservations = await ctx.prisma.reservation.findMany({
+        where: { startDate: { lte: cutoff } },
         include: {
-          reservations: {
-            where: { startDate: { lte: cutoff } },
-            orderBy: { startDate: 'asc' },
-          },
-          overlaps: {
-            where: {
-              acceptedByUser: false,
-              revertedAt: null,
-            },
-          },
+          property: { select: { id: true, name: true } },
+          source: { select: { label: true } },
         },
+        orderBy: { startDate: 'asc' },
       });
 
-      return properties.map((p) =>
-        buildRow(
-          { id: p.id, name: p.name, city: p.city, country: p.country },
-          p.reservations,
-          p.overlaps,
-          referenceDate,
-        ),
-      );
+      // Group by property to compute nextCheckIn
+      const byProperty = new Map<string, { id: string; startDate: Date; endDate: Date }[]>();
+      for (const r of reservations) {
+        const key = r.property.id;
+        if (!byProperty.has(key)) {
+          byProperty.set(key, []);
+        }
+        byProperty.get(key)!.push({ id: r.id, startDate: r.startDate, endDate: r.endDate });
+      }
+
+      const rows: FlatReservation[] = reservations.map((r) => ({
+        id: r.id,
+        property: r.property,
+        summary: r.summary,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        sourceLabel: r.source.label,
+        status: r.status,
+        nextCheckIn: computeNextCheckIn(r, byProperty.get(r.property.id) ?? []),
+      }));
+
+      return rows;
     }),
 
   byProperty: publicProcedure
@@ -102,37 +78,55 @@ export const scheduleRouter = router({
       z.object({
         propertyId: z.string(),
         referenceDate: z.coerce.date().optional(),
+        windowDays: z.number().int().min(1).max(365).optional().default(90),
       }),
     )
     .query(async ({ ctx, input }) => {
       const referenceDate = input.referenceDate ?? new Date();
-      const cutoff = new Date(referenceDate.getTime() + 90 * MS_PER_DAY);
+      const cutoff = new Date(referenceDate.getTime() + input.windowDays * MS_PER_DAY);
 
-      const property = await ctx.prisma.property.findUnique({
-        where: { id: input.propertyId },
-        include: {
-          reservations: {
-            where: { startDate: { lte: cutoff } },
-            orderBy: { startDate: 'asc' },
-          },
-          overlaps: {
-            where: {
-              acceptedByUser: false,
-              revertedAt: null,
-            },
-          },
+      const reservations = await ctx.prisma.reservation.findMany({
+        where: {
+          startDate: { lte: cutoff },
+          propertyId: input.propertyId,
         },
+        include: {
+          property: { select: { id: true, name: true } },
+          source: { select: { label: true } },
+        },
+        orderBy: { startDate: 'asc' },
       });
 
-      if (!property) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
+      if (reservations.length === 0) {
+        const property = await ctx.prisma.property.findUnique({
+          where: { id: input.propertyId },
+        });
+        if (!property) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
       }
 
-      return buildRow(
-        { id: property.id, name: property.name, city: property.city, country: property.country },
-        property.reservations,
-        property.overlaps,
-        referenceDate,
-      );
+      // Group by property to compute nextCheckIn (only one property here)
+      const byProperty = new Map<string, { id: string; startDate: Date; endDate: Date }[]>();
+      for (const r of reservations) {
+        const key = r.property.id;
+        if (!byProperty.has(key)) {
+          byProperty.set(key, []);
+        }
+        byProperty.get(key)!.push({ id: r.id, startDate: r.startDate, endDate: r.endDate });
+      }
+
+      const rows: FlatReservation[] = reservations.map((r) => ({
+        id: r.id,
+        property: r.property,
+        summary: r.summary,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        sourceLabel: r.source.label,
+        status: r.status,
+        nextCheckIn: computeNextCheckIn(r, byProperty.get(r.property.id) ?? []),
+      }));
+
+      return rows;
     }),
 });
