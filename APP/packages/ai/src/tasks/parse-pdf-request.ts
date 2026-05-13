@@ -1,4 +1,4 @@
-import { getAiClient, getAiModel } from '../router.js';
+import { callAiJson, cleanJson } from '../router.js';
 import { PdfRequestSchema, type PdfRequest } from '@app/shared';
 
 export async function parsePdfRequest(input: {
@@ -6,9 +6,6 @@ export async function parsePdfRequest(input: {
   properties: Array<{ id: string; name: string }>;
   reservations: Array<{ id: string; propertyId: string; summary: string; startDate: Date; endDate: Date }>;
 }): Promise<PdfRequest> {
-  const client = getAiClient();
-  const model = getAiModel();
-
   const propertyList = input.properties
     .map((p) => `- id: ${p.id}, name: ${p.name}`)
     .join('\n');
@@ -18,8 +15,8 @@ export async function parsePdfRequest(input: {
     .join('\n');
 
   const today = new Date();
-  const todayIso = today.toISOString().split('T')[0];
-  const monthStart = `${todayIso!.slice(0, 7)}-01`;
+  const todayIso = today.toISOString().split('T')[0]!;
+  const monthStart = `${todayIso.slice(0, 7)}-01`;
 
   const systemPrompt = `You are a PDF request parser for a property-management concierge bot.
 
@@ -53,18 +50,13 @@ ${reservationList}
 Respond ONLY with a JSON object. No markdown, no explanation.`;
 
   try {
-    const completion = await client.chat.completions.create({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: input.text },
-      ],
-      response_format: { type: 'json_object' }
-    });
+    const { raw } = await callAiJson([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: input.text },
+    ]);
 
-    const raw = completion.choices[0]?.message?.content ?? '{}';
-    const cleaned = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const cleaned = cleanJson(raw);
+    const parsed = JSON.parse(cleaned || '{}');
     const validated = PdfRequestSchema.parse(parsed);
 
     console.log('[parsePdfRequest] parsed', { text: input.text, result: validated });

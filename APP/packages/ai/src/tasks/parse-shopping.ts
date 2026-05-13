@@ -1,13 +1,10 @@
-import { getAiClient, getAiModel } from '../router.js';
+import { callAiJson, cleanJson } from '../router.js';
 import { ShoppingParseSchema, type ShoppingParse } from '@app/shared';
 
 export async function parseShoppingMessage(input: {
   text: string;
   properties: Array<{ id: string; name: string }>;
 }): Promise<ShoppingParse> {
-  const client = getAiClient();
-  const model = getAiModel();
-
   const propertyList = input.properties
     .map((p) => `- id: ${p.id}, name: ${p.name}`)
     .join('\n');
@@ -28,19 +25,13 @@ Respond ONLY with a JSON object matching this exact shape:
 {"propertyId": "..." | null, "items": [{"name": "...", "qty": 1, "unitPrice": 29.99, "ikeaUrl": "https://..."}]}`;
 
   try {
-    const completion = await client.chat.completions.create({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: input.text },
-      ],
-      response_format: { type: 'json_object' }
-    });
+    const { raw } = await callAiJson([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: input.text },
+    ]);
 
-    const raw = completion.choices[0]?.message?.content ?? '{}';
-    // Some models wrap JSON in markdown fences — strip them.
-    const cleaned = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const cleaned = cleanJson(raw);
+    const parsed = JSON.parse(cleaned || '{}');
     const validated = ShoppingParseSchema.parse(parsed);
 
     console.log('[parseShoppingMessage] parsed', { text: input.text, result: validated });
