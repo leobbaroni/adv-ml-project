@@ -52,6 +52,11 @@ Full routing rules in `.agents/agents/orchestrator.md`.
 - Whenever you change it, run `pnpm db:generate` and `pnpm db:migrate` (named migration).
 - NEVER run `prisma db push` — we want a real migration history.
 
+### Dev Server Restart Rule (MANDATORY)
+- **Always restart the web dev server after code changes** so the user can test immediately.
+- Kill the old process first: find and stop any process on port 3000, then start fresh.
+- The worker auto-reloads via `tsx watch`, but the web server does NOT. You must restart it manually.
+
 ### Testing
 - Use any testing tools, libraries, MCP tools, skills, etc. available to test your changes.
 - Never assume your changes simply work — always test!
