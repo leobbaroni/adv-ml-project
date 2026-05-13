@@ -5,12 +5,13 @@ import { TRPCError } from '@trpc/server';
 import { CheckInFormSchema } from '@app/shared';
 import { router, publicProcedure } from '../trpc';
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 function generateToken(): string {
   const bytes = new Uint8Array(24);
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     crypto.getRandomValues(bytes);
   } else {
-    // fallback for Node.js
     for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
   }
   return Array.from(bytes)
@@ -20,16 +21,26 @@ function generateToken(): string {
 
 export const checkinRouter = router({
   listByProperty: publicProcedure
-    .input(z.object({ propertyId: z.string() }))
+    .input(
+      z.object({
+        propertyId: z.string(),
+        referenceDate: z.coerce.date().optional(),
+        windowDays: z.number().int().min(1).max(365).optional().default(90),
+      }),
+    )
     .query(async ({ ctx, input }) => {
+      const referenceDate = input.referenceDate ?? new Date();
+      const cutoff = new Date(referenceDate.getTime() + input.windowDays * MS_PER_DAY);
+
       const reservations = await ctx.prisma.reservation.findMany({
         where: {
           propertyId: input.propertyId,
           status: { not: 'SUPPRESSED' },
-          endDate: { gte: new Date() },
+          endDate: { gte: referenceDate },
+          startDate: { lte: cutoff },
         },
         include: {
-          checkInForm: true,
+          checkInForm: { include: { guests: true } },
           source: { select: { label: true } },
         },
         orderBy: { startDate: 'asc' },
@@ -43,6 +54,7 @@ export const checkinRouter = router({
       const form = await ctx.prisma.checkInForm.findUnique({
         where: { guestLinkToken: input.token },
         include: {
+          guests: true,
           reservation: {
             include: {
               property: {
@@ -77,6 +89,7 @@ export const checkinRouter = router({
     .query(async ({ ctx, input }) => {
       const form = await ctx.prisma.checkInForm.findUnique({
         where: { reservationId: input.reservationId },
+        include: { guests: true },
       });
       return form ?? null;
     }),
@@ -93,21 +106,30 @@ export const checkinRouter = router({
         where: { reservationId: input.reservationId },
       });
       if (existing) {
-        return ctx.prisma.checkInForm.update({
+        const updated = await ctx.prisma.checkInForm.update({
           where: { reservationId: input.reservationId },
-          data: {
-            ...input.data,
-            filledVia: 'WEB',
-          },
+          data: { filledVia: 'WEB' },
         });
+        if (input.data.guests) {
+          await ctx.prisma.checkInGuest.deleteMany({ where: { checkInFormId: existing.id } });
+          await ctx.prisma.checkInGuest.createMany({
+            data: input.data.guests.map((g) => ({ ...g, checkInFormId: existing.id })),
+          });
+        }
+        return updated;
       }
-      return ctx.prisma.checkInForm.create({
+      const created = await ctx.prisma.checkInForm.create({
         data: {
           reservationId: input.reservationId,
-          ...input.data,
           filledVia: 'WEB',
         },
       });
+      if (input.data.guests) {
+        await ctx.prisma.checkInGuest.createMany({
+          data: input.data.guests.map((g) => ({ ...g, checkInFormId: created.id })),
+        });
+      }
+      return created;
     }),
 
   generateLink: publicProcedure
@@ -120,7 +142,6 @@ export const checkinRouter = router({
       if (!reservation) throw new TRPCError({ code: 'NOT_FOUND' });
 
       const token = generateToken();
-      // Link expires 7 days after checkout
       const expiresAt = new Date(reservation.endDate.getTime() + 7 * 24 * 60 * 60 * 1000);
 
       const existing = await ctx.prisma.checkInForm.findUnique({
@@ -159,10 +180,14 @@ export const checkinRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Link expired' });
       }
 
+      await ctx.prisma.checkInGuest.deleteMany({ where: { checkInFormId: form.id } });
+      await ctx.prisma.checkInGuest.createMany({
+        data: input.data.guests.map((g) => ({ ...g, checkInFormId: form.id })),
+      });
+
       return ctx.prisma.checkInForm.update({
         where: { id: form.id },
         data: {
-          ...input.data,
           filledVia: 'GUEST_LINK',
           submittedAt: new Date(),
         },

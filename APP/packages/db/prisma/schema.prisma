@@ -167,19 +167,30 @@ model OverlapDecision {
 }
 
 model CheckInForm {
-  id                  String       @id @default(cuid())
-  reservation         Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  reservationId       String       @unique
-  fullName            String?
-  country             String?
-  citizenId           String?
-  dob                 DateTime?    @db.Date
+  id                  String         @id @default(cuid())
+  reservation         Reservation    @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservationId       String         @unique
   filledVia           FilledVia?
-  guestLinkToken      String?      @unique
+  guestLinkToken      String?        @unique
   guestLinkExpiresAt  DateTime?
   submittedAt         DateTime?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  guests              CheckInGuest[]
+}
+
+model CheckInGuest {
+  id            String      @id @default(cuid())
+  checkInForm   CheckInForm @relation(fields: [checkInFormId], references: [id], onDelete: Cascade)
+  checkInFormId String
+  fullName      String
+  country       String
+  citizenId     String
+  dob           DateTime    @db.Date
+  createdAt     DateTime    @default(now())
+
+  @@index([checkInFormId])
 }
 
 model ShoppingItem {

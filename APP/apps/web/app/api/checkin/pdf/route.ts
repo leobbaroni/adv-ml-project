@@ -25,13 +25,21 @@ export async function GET(request: NextRequest) {
     where: { id: reservationId },
     include: {
       property: true,
-      checkInForm: true,
+      checkInForm: { include: { guests: true } },
     },
   });
 
   if (!reservation) {
     return new Response('Reservation not found', { status: 404 });
   }
+
+  const form = reservation.checkInForm;
+  const guests = form?.guests.map((g) => ({
+    fullName: g.fullName,
+    country: g.country,
+    citizenId: g.citizenId,
+    dob: g.dob ? fmt(g.dob) : null,
+  })) ?? [];
 
   const buffer = await renderToBuffer(
     createElement(CheckInPdfDocument, {
@@ -41,15 +49,8 @@ export async function GET(request: NextRequest) {
         startDate: fmt(reservation.startDate),
         endDate: fmt(reservation.endDate),
       },
-      form: reservation.checkInForm
-        ? {
-            fullName: reservation.checkInForm.fullName,
-            country: reservation.checkInForm.country,
-            citizenId: reservation.checkInForm.citizenId,
-            dob: reservation.checkInForm.dob ? fmt(reservation.checkInForm.dob) : null,
-            submittedAt: reservation.checkInForm.submittedAt ? fmt(reservation.checkInForm.submittedAt) : null,
-          }
-        : null,
+      guests,
+      submittedAt: form?.submittedAt ? fmt(form.submittedAt) : null,
       generatedAt: fmt(new Date()),
     }) as React.ReactElement<DocumentProps>,
   );

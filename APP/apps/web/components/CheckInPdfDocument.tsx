@@ -17,7 +17,16 @@ const styles = StyleSheet.create({
   value: { flex: 1, fontSize: 10 },
   divider: { borderBottomWidth: 1, borderBottomColor: GREY_200, marginVertical: 12 },
   footer: { marginTop: 20, fontSize: 8, color: GREY_600, textAlign: 'center' },
+  guestCard: { marginBottom: 12, padding: 10, backgroundColor: '#f9f9f9', borderRadius: 4 },
+  guestTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
 });
+
+interface Guest {
+  fullName: string | null;
+  country: string | null;
+  citizenId: string | null;
+  dob: string | null;
+}
 
 interface CheckInPdfProps {
   property: {
@@ -37,17 +46,12 @@ interface CheckInPdfProps {
     startDate: string;
     endDate: string;
   };
-  form: {
-    fullName?: string | null;
-    country?: string | null;
-    citizenId?: string | null;
-    dob?: string | null;
-    submittedAt?: string | null;
-  } | null;
+  guests: Guest[];
+  submittedAt: string | null;
   generatedAt: string;
 }
 
-export function CheckInPdfDocument({ property, reservation, form, generatedAt }: CheckInPdfProps) {
+export function CheckInPdfDocument({ property, reservation, guests, submittedAt, generatedAt }: CheckInPdfProps) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -114,27 +118,32 @@ export function CheckInPdfDocument({ property, reservation, form, generatedAt }:
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Guest registration</Text>
-          {form?.submittedAt ? (
+          {submittedAt ? (
             <>
-              <View style={styles.row}>
-                <Text style={styles.label}>Full name</Text>
-                <Text style={styles.value}>{form.fullName ?? '—'}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Country</Text>
-                <Text style={styles.value}>{form.country ?? '—'}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>ID / Passport</Text>
-                <Text style={styles.value}>{form.citizenId ?? '—'}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Date of birth</Text>
-                <Text style={styles.value}>{form.dob ?? '—'}</Text>
-              </View>
+              {guests.map((g, i) => (
+                <View key={i} style={styles.guestCard}>
+                  <Text style={styles.guestTitle}>Guest {i + 1}</Text>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Full name</Text>
+                    <Text style={styles.value}>{g.fullName ?? '—'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Country</Text>
+                    <Text style={styles.value}>{g.country ?? '—'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>ID / Passport</Text>
+                    <Text style={styles.value}>{g.citizenId ?? '—'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Date of birth</Text>
+                    <Text style={styles.value}>{g.dob ?? '—'}</Text>
+                  </View>
+                </View>
+              ))}
               <View style={styles.row}>
                 <Text style={styles.label}>Submitted</Text>
-                <Text style={styles.value}>{form.submittedAt}</Text>
+                <Text style={styles.value}>{submittedAt}</Text>
               </View>
             </>
           ) : (

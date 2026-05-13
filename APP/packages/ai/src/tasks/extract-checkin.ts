@@ -7,8 +7,16 @@ export async function extractCheckInData(text: string): Promise<Partial<CheckInF
   // Stub: a tiny rule-based extractor so the rest of the app can be built around it.
   const out: Partial<CheckInFormInput> = {};
   const nameMatch = text.match(/name[:\s]+([A-Z][a-zA-Z'\- ]{1,80})/i);
-  if (nameMatch?.[1]) out.fullName = nameMatch[1].trim();
   const countryMatch = text.match(/country[:\s]+([A-Za-z ]{2,40})/i);
-  if (countryMatch?.[1]) out.country = countryMatch[1].trim();
+  if (nameMatch?.[1] || countryMatch?.[1]) {
+    out.guests = [
+      {
+        fullName: nameMatch?.[1]?.trim() ?? 'Unknown',
+        country: countryMatch?.[1]?.trim() ?? 'Unknown',
+        citizenId: '',
+        dob: new Date(),
+      },
+    ];
+  }
   return out;
 }

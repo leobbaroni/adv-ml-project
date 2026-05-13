@@ -18,6 +18,7 @@ import { CalendarView } from '@/components/CalendarView';
 import { MiniSchedule } from '@/components/MiniSchedule';
 import { PendingOverlaps } from '@/components/PendingOverlaps';
 import { AuditLog } from '@/components/AuditLog';
+import { WindowPicker } from '@/components/WindowPicker';
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type PropertyFromQuery = RouterOutputs['property']['byId'];
@@ -114,7 +115,7 @@ export default function PropertyDetailPage() {
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tightish mb-3">Check-in forms</h2>
-        <ReservationCheckIns propertyId={id} />
+        <CheckInFormsPanel propertyId={id} />
       </section>
 
       <section className="mt-10">
@@ -586,12 +587,42 @@ function fmtDate(d: Date | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-function ReservationCheckIns({ propertyId }: { propertyId: string }) {
+function CheckInFormsPanel({ propertyId }: { propertyId: string }) {
+  const [referenceDate, setReferenceDate] = useState(() => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  });
+  const [windowDays, setWindowDays] = useState(90);
+
+  return (
+    <div className="space-y-4">
+      <WindowPicker
+        referenceDate={referenceDate}
+        windowDays={windowDays}
+        onChange={(d, w) => {
+          setReferenceDate(d);
+          setWindowDays(w);
+        }}
+      />
+      <ReservationCheckIns propertyId={propertyId} referenceDate={referenceDate} windowDays={windowDays} />
+    </div>
+  );
+}
+
+function ReservationCheckIns({
+  propertyId,
+  referenceDate,
+  windowDays,
+}: {
+  propertyId: string;
+  referenceDate: Date;
+  windowDays: number;
+}) {
   const utils = trpc.useUtils();
-  const list = trpc.checkin.listByProperty.useQuery({ propertyId });
+  const list = trpc.checkin.listByProperty.useQuery({ propertyId, referenceDate, windowDays });
   const generate = trpc.checkin.generateLink.useMutation({
     onSuccess: () => {
-      void utils.checkin.listByProperty.invalidate({ propertyId });
+      void utils.checkin.listByProperty.invalidate({ propertyId, referenceDate, windowDays });
     },
   });
 
@@ -607,7 +638,7 @@ function ReservationCheckIns({ propertyId }: { propertyId: string }) {
   if (reservations.length === 0) {
     return (
       <div className="surface p-4">
-        <p className="text-fg-muted text-sm">No upcoming reservations.</p>
+        <p className="text-fg-muted text-sm">No reservations in this window.</p>
       </div>
     );
   }
@@ -617,14 +648,22 @@ function ReservationCheckIns({ propertyId }: { propertyId: string }) {
       {reservations.map((r) => (
         <div key={r.id} className="flex items-start justify-between gap-4 py-3 border-b border-bg-border last:border-0">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{r.summary}</p>
-            <p className="text-xs text-fg-muted tabular-nums">
-              {fmtDate(r.startDate)} → {fmtDate(r.endDate)}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center h-5 px-1.5 rounded-sm bg-bg-surface border border-bg-border text-[10px] font-medium text-fg-muted">
+                {r.source.label}
+              </span>
+              <p className="text-sm font-medium truncate">{r.summary}</p>
+            </div>
+            <p className="text-sm font-semibold text-fg tabular-nums">
+              {fmtDate(r.startDate)} <span className="text-fg-muted font-normal">→</span> {fmtDate(r.endDate)}
             </p>
             {r.checkInForm?.submittedAt ? (
-              <p className="text-xs text-emerald-600 mt-1">Submitted {fmtDate(r.checkInForm.submittedAt)}</p>
+              <p className="text-xs text-emerald-600 mt-1 font-medium">
+                Submitted {fmtDate(r.checkInForm.submittedAt)}
+                {r.checkInForm.guests.length > 0 && ` · ${r.checkInForm.guests.length} guest(s)`}
+              </p>
             ) : r.checkInForm?.guestLinkToken ? (
-              <p className="text-xs text-amber-600 mt-1">Link generated, not submitted</p>
+              <p className="text-xs text-red-600 mt-1 font-medium">Link generated, not submitted</p>
             ) : (
               <p className="text-xs text-fg-muted mt-1">No link yet</p>
             )}

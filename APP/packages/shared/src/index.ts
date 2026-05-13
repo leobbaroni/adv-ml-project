@@ -44,11 +44,16 @@ export const ICalSourceCreateSchema = z.object({
 });
 
 // --- Check-in form ---
-export const CheckInFormSchema = z.object({
+export const CheckInGuestSchema = z.object({
   fullName: z.string().min(1),
   country: z.string().min(1),
   citizenId: z.string().min(1),
   dob: z.coerce.date(),
+});
+export type CheckInGuestInput = z.infer<typeof CheckInGuestSchema>;
+
+export const CheckInFormSchema = z.object({
+  guests: z.array(CheckInGuestSchema).min(1),
 });
 export type CheckInFormInput = z.infer<typeof CheckInFormSchema>;
 
