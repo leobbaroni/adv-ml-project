@@ -1,7 +1,9 @@
 # Rental Buddy
 
+
 <p align="center">
-  <img src="https://via.placeholder.com/120x120?text=RB" alt="Rental Buddy Logo" width="120" height="120">
+  <img width="2752" height="1536" alt="Gemini_Generated_Image_dlgbbidlgbbidlgb-clean" src="https://github.com/user-attachments/assets/e7046ef7-c735-454a-b8e1-312a1d86fe23" />
+
 </p>
 
 <p align="center">
@@ -148,7 +150,11 @@ The provider and model are fully swappable via environment variables. See [`docs
 ## Screenshots
 
 <p align="center">
-  <em>Screenshots coming soon — dashboard, Telegram bot, and overlap resolution views.</em>
+  <img width="2848" height="1670" alt="image" src="https://github.com/user-attachments/assets/20d6da5f-ecfa-47db-a741-615a71f8a490" />
+  <img width="2842" height="1680" alt="image" src="https://github.com/user-attachments/assets/0bf021fd-7d87-4ba2-837a-790bf2a31928" />
+  <img width="2842" height="1676" alt="image" src="https://github.com/user-attachments/assets/6abcd2ce-eddc-4b84-a244-7a21f04358cf" />
+  <img width="2835" height="1284" alt="image" src="https://github.com/user-attachments/assets/69695b9f-4e7c-4fdf-8731-d68dff92ddac" />
+  <img width="2841" height="1325" alt="image" src="https://github.com/user-attachments/assets/e683a911-c2c8-447c-b94c-b1afc22d7322" />
 </p>
 
 ---
