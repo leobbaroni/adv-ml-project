@@ -221,7 +221,9 @@ export async function startTelegramBot() {
         select: { id: true, name: true },
       });
 
+      logger.info({ text, propertyCount: properties.length }, '[telegram] trying shopping parse');
       const shoppingResult = await parseShoppingMessage({ text, properties });
+      logger.info({ shoppingResult }, '[telegram] shopping parse result');
 
       if (shoppingResult.items.length > 0) {
         const property = properties.find((p) => p.id === shoppingResult.propertyId);
@@ -236,14 +238,23 @@ export async function startTelegramBot() {
               propertyId: property.id,
               name: item.name,
               qty: item.qty,
+              unitPrice: item.unitPrice ?? null,
+              ikeaUrl: item.ikeaUrl ?? null,
               source: 'CHAT',
               status: 'PROPOSED',
             },
           });
         }
 
-        const itemNames = shoppingResult.items.map((i) => i.name).join(', ');
-        await ctx.reply(`Added ${shoppingResult.items.length} items for ${property.name}: ${itemNames}`);
+        const itemLines = shoppingResult.items
+          .map((i) => {
+            const price = i.unitPrice ? ` €${i.unitPrice.toFixed(2)}` : '';
+            const url = i.ikeaUrl ? ` ${i.ikeaUrl}` : '';
+            return `- ${i.qty}x ${i.name}${price}${url}`;
+          })
+          .join('\n');
+
+        await ctx.reply(`Added ${shoppingResult.items.length} items for ${property.name}:\n${itemLines}`);
 
         await prisma.chatMessage.create({
           data: {
@@ -281,7 +292,9 @@ export async function startTelegramBot() {
         },
       });
 
+      logger.info({ text, reservationCount: reservations.length }, '[telegram] trying PDF parse');
       const pdfResult = await parsePdfRequest({ text, properties, reservations });
+      logger.info({ pdfResult }, '[telegram] PDF parse result');
 
       if (pdfResult.type === 'CHECKIN') {
         let reservationId = pdfResult.reservationId;
@@ -296,9 +309,9 @@ export async function startTelegramBot() {
         }
 
         if (reservationId) {
-          const response = await fetch(
-            `http://localhost:3000/api/checkin/pdf?reservationId=${encodeURIComponent(reservationId)}`,
-          );
+          const url = `http://localhost:3000/api/checkin/pdf?reservationId=${encodeURIComponent(reservationId)}`;
+          logger.info({ url }, '[telegram] fetching check-in PDF');
+          const response = await fetch(url);
           if (response.ok) {
             const buffer = await response.arrayBuffer();
             await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'checkin.pdf'));
@@ -312,6 +325,7 @@ export async function startTelegramBot() {
             });
             return;
           }
+          logger.warn({ status: response.status }, '[telegram] check-in PDF fetch failed');
         }
       } else if (pdfResult.type === 'SCHEDULE') {
         if (pdfResult.referenceDate) {
@@ -324,7 +338,9 @@ export async function startTelegramBot() {
           if (pdfResult.windowDays) {
             params.set('windowDays', String(pdfResult.windowDays));
           }
-          const response = await fetch(`http://localhost:3000/api/schedule/pdf?${params.toString()}`);
+          const url = `http://localhost:3000/api/schedule/pdf?${params.toString()}`;
+          logger.info({ url }, '[telegram] fetching schedule PDF');
+          const response = await fetch(url);
           if (response.ok) {
             const buffer = await response.arrayBuffer();
             await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'schedule.pdf'));
@@ -338,6 +354,7 @@ export async function startTelegramBot() {
             });
             return;
           }
+          logger.warn({ status: response.status }, '[telegram] schedule PDF fetch failed');
         }
       }
     } catch (err) {

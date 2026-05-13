@@ -24,8 +24,8 @@ export async function parseShoppingMessage(input: {
 Available properties:
 ${propertyList}
 
-Respond ONLY with a JSON object matching:
-{ "propertyId": string | null, "items": [{ "name": string, "qty": number, "unitPrice"?: number, "ikeaUrl"?: string }] }`;
+Respond ONLY with a JSON object matching this exact shape:
+{"propertyId": "..." | null, "items": [{"name": "...", "qty": 1, "unitPrice": 29.99, "ikeaUrl": "https://..."}]}`;
 
   try {
     const completion = await client.chat.completions.create({
@@ -34,13 +34,20 @@ Respond ONLY with a JSON object matching:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: input.text },
       ],
-      response_format: { type: 'json_object' },
+      // JSON mode is not supported by all providers (e.g. big-pickle).
+      // We rely on prompt instructions instead.
     });
 
     const raw = completion.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(raw);
-    return ShoppingParseSchema.parse(parsed);
-  } catch {
+    // Some models wrap JSON in markdown fences — strip them.
+    const cleaned = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(cleaned);
+    const validated = ShoppingParseSchema.parse(parsed);
+
+    console.log('[parseShoppingMessage] parsed', { text: input.text, result: validated });
+    return validated;
+  } catch (err) {
+    console.error('[parseShoppingMessage] failed:', err);
     return { propertyId: null, items: [] };
   }
 }
