@@ -2,6 +2,41 @@ import { z } from 'zod';
 import type { ShoppingItem } from '@app/db';
 import { router, publicProcedure } from '../trpc';
 
+async function fetchIkeaPrice(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Try JSON-LD structured data first
+    const ldMatch = html.match(/<script type="application\/ld\+json">([^<]+)<\/script>/i);
+    if (ldMatch) {
+      const data = JSON.parse(ldMatch[1]!);
+      if (data['@type'] === 'Product' && data.offers?.price) {
+        const price = parseFloat(data.offers.price);
+        if (!isNaN(price) && price > 0) return price;
+      }
+    }
+
+    // Fallback: look for price meta tag or data attribute
+    const priceMatch = html.match(/"price":\s*"?([0-9]+[.,]?[0-9]*)"?/);
+    if (priceMatch) {
+      const price = parseFloat(priceMatch[1]!.replace(',', '.'));
+      if (!isNaN(price) && price > 0) return price;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function mapItem(item: ShoppingItem & { property: { name: string } }) {
   return {
     ...item,
@@ -98,5 +133,12 @@ export const shoppingRouter = router({
         include: { property: { select: { name: true } } },
       });
       return mapItem(item);
+    }),
+
+  fetchIkeaPrice: publicProcedure
+    .input(z.object({ url: z.string().url() }))
+    .mutation(async ({ input }) => {
+      const price = await fetchIkeaPrice(input.url);
+      return { price };
     }),
 });

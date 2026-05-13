@@ -78,7 +78,14 @@ export async function startTelegramBot() {
   });
 
   bot.command('start', (ctx) =>
-    ctx.reply('Concierge online. Phase 0 scaffold — real commands ship in phases 6–8.'),
+    ctx.reply(
+      'Concierge online.\n\n' +
+        'You can ask me things like:\n' +
+        '• "check-in form for May 11"\n' +
+        '• "send me the schedule for this month"\n' +
+        '• "Buy for Triplex: 2x MALM bed frame"\n\n' +
+        'I also alert you about calendar overlaps with Accept/Revert buttons.',
+    ),
   );
 
   bot.command('ping', (ctx) => ctx.reply('pong'));
@@ -307,11 +314,13 @@ export async function startTelegramBot() {
           }
         }
       } else if (pdfResult.type === 'SCHEDULE') {
-        if (pdfResult.propertyId && pdfResult.referenceDate) {
+        if (pdfResult.referenceDate) {
           const params = new URLSearchParams({
-            propertyId: pdfResult.propertyId,
             referenceDate: pdfResult.referenceDate,
           });
+          if (pdfResult.propertyId) {
+            params.set('propertyId', pdfResult.propertyId);
+          }
           if (pdfResult.windowDays) {
             params.set('windowDays', String(pdfResult.windowDays));
           }
