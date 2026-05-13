@@ -35,12 +35,15 @@ export async function GET(request: Request) {
   const referenceDate = referenceDateParam
     ? new Date(referenceDateParam)
     : new Date();
-  const windowDays = 90;
+  const windowDaysParam = searchParams.get('windowDays');
+  const windowDays = windowDaysParam ? Number(windowDaysParam) : 90;
   const cutoff = new Date(referenceDate.getTime() + windowDays * MS_PER_DAY);
 
   const reservations = await prisma.reservation.findMany({
     where: {
+      endDate: { gte: referenceDate },
       startDate: { lte: cutoff },
+      status: { not: 'SUPPRESSED' },
       ...(propertyId ? { propertyId } : {}),
     },
     orderBy: { startDate: 'asc' },

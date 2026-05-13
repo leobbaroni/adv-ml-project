@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Download } from 'lucide-react';
 import { trpc } from '@/lib/trpc/react';
@@ -14,18 +14,36 @@ function formatISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function endOfMonthUTC(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+}
+
+function daysBetween(a: Date, b: Date): number {
+  return Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export default function SchedulePage() {
-  const [activeDays, setActiveDays] = useState(0);
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  const referenceDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + activeDays);
-    d.setUTCHours(0, 0, 0, 0);
-    return d;
-  }, [activeDays]);
+  const [referenceDate, setReferenceDate] = useState<Date>(today);
+  const [windowDays, setWindowDays] = useState<number>(
+    daysBetween(today, endOfMonthUTC(today)),
+  );
 
-  const schedule = trpc.schedule.list.useQuery({ referenceDate });
-  const pdfUrl = `/api/schedule/pdf?referenceDate=${formatISODate(referenceDate)}`;
+  const handleWindowChange = useCallback((newRef: Date, newDays: number) => {
+    setReferenceDate(newRef);
+    setWindowDays(newDays);
+  }, []);
+
+  const schedule = trpc.schedule.list.useQuery({ referenceDate, windowDays });
+
+  const pdfUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('referenceDate', formatISODate(referenceDate));
+    params.set('windowDays', String(windowDays));
+    return `/api/schedule/pdf?${params.toString()}`;
+  }, [referenceDate, windowDays]);
 
   return (
     <main className="min-h-screen px-6 md:px-12 py-12 max-w-5xl mx-auto">
@@ -56,7 +74,11 @@ export default function SchedulePage() {
       </header>
 
       <div className="mb-6">
-        <WindowPicker activeDays={activeDays} onChange={setActiveDays} />
+        <WindowPicker
+          referenceDate={referenceDate}
+          windowDays={windowDays}
+          onChange={handleWindowChange}
+        />
       </div>
 
       {schedule.error && (
