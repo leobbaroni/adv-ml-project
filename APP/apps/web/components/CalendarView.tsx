@@ -114,12 +114,13 @@ function MonthView({ month, reservations }: { month: Date; reservations: Reserva
   const monthStart = startOfMonthUTC(month);
   const monthEnd = endOfMonthUTC(month);
 
-  // Reservations that overlap this month at all
+  // Reservations that overlap this month at all.
+  // endDate is checkout day → guest does NOT stay that night, so visual ends on endDate - 1.
   const monthReservations = reservations.filter((r) => {
     const s = new Date(r.startDate);
     const e = new Date(r.endDate);
-    // treat endDate as inclusive (guest stays until that day, usually checkout)
-    return s <= monthEnd && e >= monthStart;
+    const eDisplay = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate() - 1));
+    return s <= monthEnd && eDisplay >= monthStart;
   });
 
   return (
@@ -150,7 +151,8 @@ function MonthView({ month, reservations }: { month: Date; reservations: Reserva
           const overlapping = monthReservations.filter((r) => {
             const s = new Date(r.startDate);
             const e = new Date(r.endDate);
-            return s <= weekEnd && e >= weekStart;
+            const eDisplay = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate() - 1));
+            return s <= weekEnd && eDisplay >= weekStart;
           });
 
           return (
@@ -174,9 +176,10 @@ function MonthView({ month, reservations }: { month: Date; reservations: Reserva
                 {overlapping.map((r) => {
                   const s = new Date(r.startDate);
                   const e = new Date(r.endDate);
+                  const eDisplay = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate() - 1));
 
                   const clampedStart = s < weekStart ? weekStart : s;
-                  const clampedEnd = e > weekEnd ? weekEnd : e;
+                  const clampedEnd = eDisplay > weekEnd ? weekEnd : eDisplay;
 
                   const startIdx = week.findIndex(
                     (d) => d && d.getTime() === clampedStart.getTime()
