@@ -15,7 +15,7 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 | 7 | Telegram bot — shopping parser → IKEA orders invoice view *(cut-line)* | DONE |
 | 8 | Telegram bot — natural-language PDF delivery (check-in + schedule) *(cut-line)* | DONE |
 | 9 | Notifications center + R3F hero + polish | DONE |
-| 10 | Business plan + GenAI log + pitch deck | TODO |
+| 10 | Business plan + GenAI log + pitch deck | DONE |
 
 ## Phase 0 — Done when
 
@@ -97,4 +97,14 @@ Phased, each phase demo-able. Cut-lines marked. Update status as phases complete
 - Landing page rewritten to showcase features with pitch-deck quality.
 - Entire UI has dark/light mode support using updated Tailwind variables.
 - Project name is updated to "Rental Buddy".
+
+## Phase 10 — Done when
+
+- All opencode TODOs are cleared from the codebase.
+- README.md is rewritten as a professional open-source repo with an AI setup prompt at the top.
+- AI-INTEGRATION.md documents every AI task (overlap resolver, shopping parser, PDF request parser, repair estimator, check-in extractor) with prompts and fallback strategies.
+- GENAI-LOG.md appendix details AI tool usage (models, costs, prompts, iterations) for the business plan.
+- Docs directory is reorganized: `docs/SETUP.md`, `docs/AI-INTEGRATION.md`, `docs/GENAI-LOG.md`, `docs/TELEGRAM-BOT-SETUP.md`, `docs/ICAL-OVERLAP-RULES.md`.
+- All `.agents/` knowledge-base files are reviewed and updated for accuracy.
+- `pnpm build`, `pnpm typecheck`, `pnpm lint` all pass.
 

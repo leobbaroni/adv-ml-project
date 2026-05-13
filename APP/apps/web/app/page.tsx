@@ -89,7 +89,7 @@ export default function LandingPage() {
           <div className="w-5 h-5 rounded bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px]">RB</div>
           <span className="font-medium text-fg">Rental Buddy</span>
         </div>
-        <p>Built for short-term rental hosts · 2758-T4 Advanced Topics in ML</p>
+        <p>Built for short-term rental hosts</p>
       </footer>
     </main>
   );
