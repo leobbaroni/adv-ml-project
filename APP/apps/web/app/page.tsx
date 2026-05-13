@@ -17,8 +17,9 @@ export default function LandingPage() {
             <span className="text-fg-muted">Zero conflicts.</span>
           </h1>
           <p className="mt-6 text-lg text-fg-muted max-w-prose leading-relaxed">
-            Rental Buddy merges Airbnb, Booking.com, VRBO and Interhome calendars in real time, 
-            resolves overlaps with AI, and lets you manage repairs, orders, and guest check-ins from Telegram.
+            Rental Buddy merges your Airbnb, Booking, VRBO and Interhome calendars,
+            resolves double-bookings with AI, and handles repairs, orders, and guest
+            check-ins — all from one Telegram chat.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link

@@ -7,7 +7,12 @@ export default function SplineHero({
     <div className="w-full h-full min-h-[440px] relative overflow-hidden">
       <iframe
         src={url}
-        className="absolute inset-0 w-full h-full border-0"
+        className="absolute left-1/2 bottom-0 border-0 dark:[mix-blend-mode:multiply]"
+        style={{
+          width: '115%',
+          height: '115%',
+          transform: 'translateX(-50%)',
+        }}
         loading="lazy"
         title="Rental Buddy 3D hero"
       />
