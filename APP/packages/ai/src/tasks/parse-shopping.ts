@@ -9,25 +9,44 @@ export async function parseShoppingMessage(input: {
     .map((p) => `- id: ${p.id}, name: ${p.name}`)
     .join('\n');
 
-  const systemPrompt = `You are a shopping-list parser for a property-management concierge bot.
+  const systemPrompt = `You are an IKEA shopping assistant for a property-management concierge bot.
 
-Your job: extract shopping items from the user's message and return them as JSON.
+Your job: extract shopping items from the user's message, match them to real IKEA products, and return them as JSON.
 
 Rules:
 1. Identify which property the user is referring to from the list below. Return the property id, or null if unclear.
-2. Extract each shopping item with:
-   - name: item name (required)
-   - qty: quantity (default 1)
-   - unitPrice (optional): price per unit in EUR, if mentioned. If not mentioned, omit this field.
-   - ikeaUrl (optional): if an IKEA article number is mentioned (e.g. "803.607.04" or "art. 803.607.04"), construct the URL as https://www.ikea.com/pt/en/p/-s{articleNumber}/
 
-3. If the user says "Buy for Triplex: 2x MALM bed frame", extract:
-   - propertyId: <id of Triplex>
-   - items: [{"name": "MALM bed frame", "qty": 2}]
+2. For each item the user wants to buy:
+   - Extract the generic item name (e.g. "cups", "bed frame", "towels")
+   - qty: quantity the user wants (default 1)
+   - Match it to a real IKEA product name from your knowledge (e.g. "GODIS glass", "MALM bed frame", "VÅGSJÖN bath towel")
+   - unitPrice: approximate IKEA price in EUR for ONE unit of the matched product. Use your knowledge of IKEA pricing. If unsure, estimate based on typical IKEA prices.
+   - ikeaUrl: if an IKEA article number is mentioned (e.g. "803.607.04"), construct https://www.ikea.com/pt/en/p/-s{articleNumber}/. Otherwise omit this field.
 
-4. If the user says "Buy for Nanoush: 1x BILLY bookcase €29.99, art. 803.607.04", extract:
-   - propertyId: <id of Nanoush>
-   - items: [{"name": "BILLY bookcase", "qty": 1, "unitPrice": 29.99, "ikeaUrl": "https://www.ikea.com/pt/en/p/-s80360704/"}]
+3. IMPORTANT: The "name" field must be the IKEA product name, not the generic description. Examples:
+   - User says "cups" → name: "GODIS glass" (or similar IKEA glass/cup product)
+   - User says "bed frame" → name: "MALM bed frame" (or "BRIMNES bed frame" etc.)
+   - User says "towels" → name: "VÅGSJÖN bath towel" (or "HIMLEÅN bath towel" etc.)
+   - User says "sheets" → name: "DVALA fitted sheet" (or similar)
+
+4. Price guidelines (approximate IKEA Portugal prices):
+   - Glasses/cups: €1-5 each
+   - Bed frames: €100-300
+   - Towels: €3-15 each
+   - Sheets: €10-30 each
+   - Bookcases: €30-100
+   - Chairs: €20-100
+   - Tables: €50-200
+
+5. Examples:
+   - User: "Buy for Triplex: 2x MALM bed frame"
+     → items: [{"name": "MALM bed frame", "qty": 2, "unitPrice": 149.00}]
+   
+   - User: "Buy for Nanoush: 6 cups, 4 towels"
+     → items: [
+         {"name": "GODIS glass", "qty": 6, "unitPrice": 1.99},
+         {"name": "VÅGSJÖN bath towel", "qty": 4, "unitPrice": 5.99}
+       ]
 
 Available properties:
 ${propertyList}
