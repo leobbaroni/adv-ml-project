@@ -233,13 +233,19 @@ export async function startTelegramBot() {
         }
 
         for (const item of shoppingResult.items) {
+          // Always generate an IKEA search link from the item name so the user
+          // has a starting point. They can refine it on the Orders page.
+          const searchUrl =
+            item.ikeaUrl ??
+            `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(item.name)}`;
+
           await prisma.shoppingItem.create({
             data: {
               propertyId: property.id,
               name: item.name,
               qty: item.qty,
               unitPrice: item.unitPrice ?? null,
-              ikeaUrl: item.ikeaUrl ?? null,
+              ikeaUrl: searchUrl,
               source: 'CHAT',
               status: 'PROPOSED',
             },
@@ -249,8 +255,10 @@ export async function startTelegramBot() {
         const itemLines = shoppingResult.items
           .map((i) => {
             const price = i.unitPrice ? ` €${i.unitPrice.toFixed(2)}` : '';
-            const url = i.ikeaUrl ? ` ${i.ikeaUrl}` : '';
-            return `- ${i.qty}x ${i.name}${price}${url}`;
+            const url =
+              i.ikeaUrl ??
+              `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(i.name)}`;
+            return `- ${i.qty}x ${i.name}${price}\n  ${url}`;
           })
           .join('\n');
 
