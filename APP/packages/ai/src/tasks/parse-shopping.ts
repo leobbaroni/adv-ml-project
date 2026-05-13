@@ -20,6 +20,7 @@ Your job: extract shopping items from the user's message, match them to real IKE
 
 Rules:
 1. Identify which property the user is referring to from the list below. Return the property id, or null if unclear.
+   Treat "buy", "order", "get", "purchase", and "add to shopping list" as shopping intents.
 
 2. For each item the user wants to buy:
    - qty: quantity the user wants (default 1)
@@ -40,6 +41,12 @@ Rules:
          {"name": "GODIS glass", "qty": 6, "unitPrice": 1.99},
          {"name": "VÅGSJÖN bath towel", "qty": 4, "unitPrice": 5.99}
        ]
+
+   - User: "order 4 towels for Triplex"
+     → items: [{"name": "VÅGSJÖN bath towel", "qty": 4, "unitPrice": 5.99}]
+
+   - User: "get one 24cm pan for Nanoush"
+     → items: [{"name": "OUMBARLIG frying pan", "qty": 1, "unitPrice": 19.99}]
 
 Available properties:
 ${propertyList}

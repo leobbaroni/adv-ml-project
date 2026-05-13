@@ -4,7 +4,11 @@
 import { Bot, InputFile } from 'grammy';
 import { prisma } from '@app/db';
 import { parseShoppingMessage, parsePdfRequest } from '@app/ai';
-import { findIkeaProductByName, getIkeaSearchUrl } from '@app/ai/ikea-catalog';
+import {
+  findIkeaProductByName,
+  getIkeaSearchUrl,
+  resolveIkeaProduct,
+} from '@app/ai/ikea-catalog';
 import { logger } from '../logger.js';
 
 let bot: Bot | null = null;
@@ -22,6 +26,119 @@ function formatDateShort(d: Date): string {
   const day = String(date.getUTCDate()).padStart(2, '0');
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   return `${day}/${month}`;
+}
+
+function firstDayOfCurrentMonthIso(): string {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+function getWebBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
+function isScheduleIntent(text: string): boolean {
+  return /\b(schedule|calendar|reservations|bookings)\b/i.test(text);
+}
+
+function isPdfIntent(text: string): boolean {
+  return /\b(pdf|check-?in|schedule|calendar|reservations|bookings)\b/i.test(text);
+}
+
+function isShoppingIntent(text: string): boolean {
+  return /\b(buy|order|get|purchase|add)\b/i.test(text) && !isPdfIntent(text);
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function findPropertyInText<T extends { id: string; name: string }>(
+  text: string,
+  properties: T[],
+): T | undefined {
+  const normalized = normalizeText(text);
+  return properties.find((property) => normalized.includes(normalizeText(property.name)));
+}
+
+function parseQuantityAndName(rawItem: string): { name: string; qty: number } | null {
+  const cleaned = rawItem.trim().replace(/^\b(?:a|an|the)\b\s+/i, '');
+  const wordNumbers: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+
+  const numericMatch = cleaned.match(/^(\d+)\s*x?\s+(.+)$/i) ?? cleaned.match(/^(\d+)x\s*(.+)$/i);
+  if (numericMatch) {
+    return { qty: Number(numericMatch[1]), name: numericMatch[2]!.trim() };
+  }
+
+  const wordMatch = cleaned.match(/^([a-z]+)\s+(.+)$/i);
+  if (wordMatch) {
+    const qty = wordNumbers[wordMatch[1]!.toLowerCase()];
+    if (qty) return { qty, name: wordMatch[2]!.trim() };
+  }
+
+  return cleaned ? { qty: 1, name: cleaned } : null;
+}
+
+function parseShoppingFallback(
+  text: string,
+  properties: Array<{ id: string; name: string }>,
+): { propertyId: string | null; items: Array<{ name: string; qty: number; unitPrice?: number | null }> } {
+  const byPrefix = text.match(/\b(?:buy|order|get|purchase|add)\b\s+for\s+(.+?):\s*(.+)$/i);
+  const bySuffix = text.match(/\b(?:buy|order|get|purchase|add)\b\s+(.+?)\s+(?:for|to)\s+(.+)$/i);
+
+  const propertyText = byPrefix?.[1] ?? bySuffix?.[2];
+  const itemsText = byPrefix?.[2] ?? bySuffix?.[1];
+  if (!propertyText || !itemsText) return { propertyId: null, items: [] };
+
+  const property = findPropertyInText(propertyText, properties);
+  if (!property) return { propertyId: null, items: [] };
+
+  const items = itemsText
+    .split(/,|\s+and\s+/i)
+    .map(parseQuantityAndName)
+    .filter((item): item is { name: string; qty: number } => Boolean(item))
+    .map((item) => {
+      const catalogProduct = findIkeaProductByName(item.name);
+      return {
+        name: catalogProduct?.name ?? item.name,
+        qty: item.qty,
+        unitPrice: catalogProduct?.unitPrice,
+      };
+    });
+
+  return { propertyId: property.id, items };
+}
+
+function parseScheduleFallback(
+  text: string,
+  properties: Array<{ id: string; name: string }>,
+) {
+  if (!isScheduleIntent(text)) return null;
+  const property = findPropertyInText(text, properties);
+  return {
+    type: 'SCHEDULE' as const,
+    propertyId: property?.id ?? null,
+    referenceDate: firstDayOfCurrentMonthIso(),
+    windowDays: 30,
+  };
 }
 
 async function generateTextSchedule(params: {
@@ -283,182 +400,203 @@ export async function startTelegramBot() {
       logger.error({ err }, '[telegram] failed to log inbound message');
     }
 
+    const properties = await prisma.property.findMany({
+      select: { id: true, name: true },
+    });
+
     // 2. Try shopping
-    try {
-      const properties = await prisma.property.findMany({
-        select: { id: true, name: true },
-      });
+    if (isShoppingIntent(text)) {
+      try {
+        logger.info({ text, propertyCount: properties.length }, '[telegram] trying shopping parse');
+        const aiShoppingResult = await parseShoppingMessage({ text, properties });
+        const aiProperty = properties.find((p) => p.id === aiShoppingResult.propertyId);
+        const shoppingResult =
+          aiShoppingResult.items.length > 0 && aiProperty
+            ? aiShoppingResult
+            : parseShoppingFallback(text, properties);
+        logger.info({ shoppingResult }, '[telegram] shopping parse result');
 
-      logger.info({ text, propertyCount: properties.length }, '[telegram] trying shopping parse');
-      const shoppingResult = await parseShoppingMessage({ text, properties });
-      logger.info({ shoppingResult }, '[telegram] shopping parse result');
-
-      if (shoppingResult.items.length > 0) {
-        const property = properties.find((p) => p.id === shoppingResult.propertyId);
-        if (!property) {
-          await ctx.reply("I couldn't find that property.");
-          return;
-        }
-
-        for (const item of shoppingResult.items) {
-          // Look up price in catalog for accuracy, use search URL for link
-          let productPrice = item.unitPrice;
-          const catalogProduct = findIkeaProductByName(item.name);
-          if (catalogProduct) {
-            productPrice = catalogProduct.unitPrice;
+        if (shoppingResult.items.length > 0) {
+          const property = properties.find((p) => p.id === shoppingResult.propertyId);
+          if (!property) {
+            await ctx.reply("I couldn't find that property.");
+            return;
           }
 
-          const finalUrl = getIkeaSearchUrl(item.name);
+          const savedItems: Array<{
+            name: string;
+            qty: number;
+            unitPrice: number | null;
+            ikeaUrl: string;
+          }> = [];
 
-          await prisma.shoppingItem.create({
-            data: {
-              propertyId: property.id,
-              name: item.name,
+          for (const item of shoppingResult.items) {
+            const liveProduct = await resolveIkeaProduct(item.name);
+            const catalogProduct = findIkeaProductByName(item.name);
+            const productName = liveProduct?.name ?? catalogProduct?.name ?? item.name;
+            const productPrice =
+              liveProduct?.unitPrice ?? catalogProduct?.unitPrice ?? item.unitPrice ?? null;
+            const finalUrl = liveProduct?.url ?? getIkeaSearchUrl(productName);
+
+            await prisma.shoppingItem.create({
+              data: {
+                propertyId: property.id,
+                name: productName,
+                qty: item.qty,
+                unitPrice: productPrice ?? null,
+                ikeaUrl: finalUrl,
+                source: 'CHAT',
+                status: 'PROPOSED',
+              },
+            });
+
+            savedItems.push({
+              name: productName,
               qty: item.qty,
-              unitPrice: productPrice ?? null,
+              unitPrice: productPrice,
               ikeaUrl: finalUrl,
-              source: 'CHAT',
-              status: 'PROPOSED',
+            });
+          }
+
+          const itemLines = savedItems
+            .map((i) => {
+              const price = i.unitPrice ? ` €${i.unitPrice.toFixed(2)}` : '';
+              return `- ${i.qty}x ${i.name}${price}\n  ${i.ikeaUrl}`;
+            })
+            .join('\n');
+
+          await ctx.reply(`Added ${shoppingResult.items.length} items for ${property.name}:\n${itemLines}`);
+
+          await prisma.chatMessage.create({
+            data: {
+              direction: 'OUTBOUND',
+              telegramUserId,
+              text: `Added ${shoppingResult.items.length} shopping items`,
+              aiAction: 'SHOPPING_ADDED',
             },
           });
+          return;
         }
-
-        const itemLines = shoppingResult.items
-          .map((i) => {
-            const price = i.unitPrice ? ` €${i.unitPrice.toFixed(2)}` : '';
-            const url = getIkeaSearchUrl(i.name);
-            return `- ${i.qty}x ${i.name}${price}\n  ${url}`;
-          })
-          .join('\n');
-
-        await ctx.reply(`Added ${shoppingResult.items.length} items for ${property.name}:\n${itemLines}`);
-
-        await prisma.chatMessage.create({
-          data: {
-            direction: 'OUTBOUND',
-            telegramUserId,
-            text: `Added ${shoppingResult.items.length} shopping items`,
-            aiAction: 'SHOPPING_ADDED',
-          },
-        });
-        return;
+      } catch (err) {
+        logger.error({ err }, '[telegram] shopping parsing failed');
       }
-    } catch (err) {
-      logger.error({ err }, '[telegram] shopping parsing failed');
     }
 
     // 3. Try PDF request
-    try {
-      const properties = await prisma.property.findMany({
-        select: { id: true, name: true },
-      });
+    if (isPdfIntent(text)) {
+      try {
+        const now = new Date();
+        const cutoff = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const reservations = await prisma.reservation.findMany({
+          where: {
+            startDate: { lte: cutoff },
+            endDate: { gte: now },
+          },
+          select: {
+            id: true,
+            propertyId: true,
+            startDate: true,
+            endDate: true,
+            summary: true,
+          },
+        });
 
-      const now = new Date();
-      const cutoff = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-      const reservations = await prisma.reservation.findMany({
-        where: {
-          startDate: { lte: cutoff },
-          endDate: { gte: now },
-        },
-        select: {
-          id: true,
-          propertyId: true,
-          startDate: true,
-          endDate: true,
-          summary: true,
-        },
-      });
+        logger.info({ text, reservationCount: reservations.length }, '[telegram] trying PDF parse');
+        const aiPdfResult = await parsePdfRequest({ text, properties, reservations });
+        const pdfResult =
+          aiPdfResult.type === 'UNKNOWN'
+            ? parseScheduleFallback(text, properties) ?? aiPdfResult
+            : aiPdfResult;
+        logger.info({ pdfResult }, '[telegram] PDF parse result');
 
-      logger.info({ text, reservationCount: reservations.length }, '[telegram] trying PDF parse');
-      const pdfResult = await parsePdfRequest({ text, properties, reservations });
-      logger.info({ pdfResult }, '[telegram] PDF parse result');
-
-      if (pdfResult.type === 'CHECKIN') {
-        let reservationId = pdfResult.reservationId;
-        if (!reservationId && pdfResult.referenceDate && pdfResult.propertyId) {
-          const refDateStr = formatDate(new Date(pdfResult.referenceDate));
-          const match = reservations.find(
-            (r) =>
-              r.propertyId === pdfResult.propertyId &&
-              (formatDate(r.startDate) === refDateStr || formatDate(r.endDate) === refDateStr),
-          );
-          if (match) reservationId = match.id;
-        }
-
-        if (reservationId) {
-          const url = `http://localhost:3000/api/checkin/pdf?reservationId=${encodeURIComponent(reservationId)}`;
-          logger.info({ url }, '[telegram] fetching check-in PDF');
-          const response = await fetch(url);
-          if (response.ok) {
-            const buffer = await response.arrayBuffer();
-            await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'checkin.pdf'));
-            await prisma.chatMessage.create({
-              data: {
-                direction: 'OUTBOUND',
-                telegramUserId,
-                text: 'Check-in PDF delivered',
-                aiAction: 'PDF_DELIVERED',
-              },
-            });
-            return;
+        if (pdfResult.type === 'CHECKIN') {
+          let reservationId = pdfResult.reservationId;
+          if (!reservationId && pdfResult.referenceDate && pdfResult.propertyId) {
+            const refDateStr = formatDate(new Date(pdfResult.referenceDate));
+            const match = reservations.find(
+              (r) =>
+                r.propertyId === pdfResult.propertyId &&
+                (formatDate(r.startDate) === refDateStr || formatDate(r.endDate) === refDateStr),
+            );
+            if (match) reservationId = match.id;
           }
-          logger.warn({ status: response.status }, '[telegram] check-in PDF fetch failed');
-        }
-      } else if (pdfResult.type === 'SCHEDULE') {
-        if (pdfResult.referenceDate) {
-          const params = new URLSearchParams({
-            referenceDate: pdfResult.referenceDate,
-          });
-          if (pdfResult.propertyId) {
-            params.set('propertyId', pdfResult.propertyId);
-          }
-          if (pdfResult.windowDays) {
-            params.set('windowDays', String(pdfResult.windowDays));
-          }
-          const url = `http://localhost:3000/api/schedule/pdf?${params.toString()}`;
-          logger.info({ url }, '[telegram] fetching schedule PDF');
-          try {
-            const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+
+          if (reservationId) {
+            const url = `${getWebBaseUrl()}/api/checkin/pdf?reservationId=${encodeURIComponent(reservationId)}`;
+            logger.info({ url }, '[telegram] fetching check-in PDF');
+            const response = await fetch(url);
             if (response.ok) {
               const buffer = await response.arrayBuffer();
-              await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'schedule.pdf'));
+              await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'checkin.pdf'));
               await prisma.chatMessage.create({
                 data: {
                   direction: 'OUTBOUND',
                   telegramUserId,
-                  text: 'Schedule PDF delivered',
+                  text: 'Check-in PDF delivered',
                   aiAction: 'PDF_DELIVERED',
                 },
               });
               return;
             }
-            logger.warn({ status: response.status, statusText: response.statusText }, '[telegram] schedule PDF fetch failed — falling back to text');
-          } catch (fetchErr) {
-            logger.error({ fetchErr }, '[telegram] schedule PDF fetch threw — falling back to text');
+            logger.warn({ status: response.status }, '[telegram] check-in PDF fetch failed');
           }
+        } else if (pdfResult.type === 'SCHEDULE') {
+          const referenceDate = pdfResult.referenceDate ?? firstDayOfCurrentMonthIso();
+          if (referenceDate) {
+            const params = new URLSearchParams({ referenceDate });
+            if (pdfResult.propertyId) {
+              params.set('propertyId', pdfResult.propertyId);
+            }
+            if (pdfResult.windowDays) {
+              params.set('windowDays', String(pdfResult.windowDays));
+            }
+            const url = `${getWebBaseUrl()}/api/schedule/pdf?${params.toString()}`;
+            logger.info({ url }, '[telegram] fetching schedule PDF');
+            try {
+              const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+              if (response.ok) {
+                const buffer = await response.arrayBuffer();
+                await ctx.replyWithDocument(new InputFile(Buffer.from(buffer), 'schedule.pdf'));
+                await prisma.chatMessage.create({
+                  data: {
+                    direction: 'OUTBOUND',
+                    telegramUserId,
+                    text: 'Schedule PDF delivered',
+                    aiAction: 'PDF_DELIVERED',
+                  },
+                });
+                return;
+              }
+              logger.warn(
+                { status: response.status, statusText: response.statusText },
+                '[telegram] schedule PDF fetch failed — falling back to text',
+              );
+            } catch (fetchErr) {
+              logger.error({ fetchErr }, '[telegram] schedule PDF fetch threw — falling back to text');
+            }
 
-          // Fallback: send text-based schedule
-          const textSchedule = await generateTextSchedule({
-            referenceDate: pdfResult.referenceDate,
-            propertyId: pdfResult.propertyId ?? undefined,
-            windowDays: pdfResult.windowDays ?? undefined,
-          });
-          if (textSchedule) {
-            await ctx.reply(textSchedule, { parse_mode: 'Markdown' });
-            await prisma.chatMessage.create({
-              data: {
-                direction: 'OUTBOUND',
-                telegramUserId,
-                text: 'Schedule text delivered (PDF fallback)',
-                aiAction: 'SCHEDULE_TEXT_DELIVERED',
-              },
+            const textSchedule = await generateTextSchedule({
+              referenceDate,
+              propertyId: pdfResult.propertyId ?? undefined,
+              windowDays: pdfResult.windowDays ?? undefined,
             });
-            return;
+            if (textSchedule) {
+              await ctx.reply(textSchedule);
+              await prisma.chatMessage.create({
+                data: {
+                  direction: 'OUTBOUND',
+                  telegramUserId,
+                  text: 'Schedule text delivered (PDF fallback)',
+                  aiAction: 'SCHEDULE_TEXT_DELIVERED',
+                },
+              });
+              return;
+            }
           }
         }
+      } catch (err) {
+        logger.error({ err }, '[telegram] PDF request failed');
       }
-    } catch (err) {
-      logger.error({ err }, '[telegram] PDF request failed');
     }
 
     // 4. Fallback

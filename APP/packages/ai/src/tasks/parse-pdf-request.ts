@@ -29,15 +29,15 @@ Rules:
    - If a date is mentioned (e.g. "May 11", "11/05", "2025-05-11"), match it to a reservation startDate or endDate.
    - If a property name is mentioned, narrow to that property's reservations.
    - Set reservationId to the matched reservation id.
-   - Example: "check-in form for May 11" → {"type": "CHECKIN", "reservationId": "..."}
+   - Example: "check-in form for May 11" → {"type": "CHECKIN", "propertyId": null, "reservationId": "...", "referenceDate": null, "windowDays": null}
 
 2. SCHEDULE — the user wants a schedule/calendar PDF.
    - Phrases like "schedule for this month", "full schedule", "calendar this month", "schedule pdf", "send me the schedule", "schedule" → type SCHEDULE.
    - referenceDate must be the first day of the relevant month (e.g. if today is ${todayIso} and user says "this month", referenceDate is "${monthStart}").
    - windowDays defaults to 30.
    - If a property name is mentioned, set propertyId. If no property is mentioned, propertyId stays null (all properties).
-   - Example: "send me the schedule for this month" → {"type": "SCHEDULE", "referenceDate": "${monthStart}", "windowDays": 30}
-   - Example: "schedule for Triplex" → {"type": "SCHEDULE", "propertyId": "<triplex-id>", "referenceDate": "${monthStart}", "windowDays": 30}
+   - Example: "send me the schedule for this month" → {"type": "SCHEDULE", "propertyId": null, "reservationId": null, "referenceDate": "${monthStart}", "windowDays": 30}
+   - Example: "schedule for Triplex" → {"type": "SCHEDULE", "propertyId": "<triplex-id>", "reservationId": null, "referenceDate": "${monthStart}", "windowDays": 30}
 
 3. UNKNOWN — if you genuinely cannot determine the request type.
 

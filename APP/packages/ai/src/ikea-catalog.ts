@@ -10,6 +10,14 @@ export interface IkeaProduct {
   unit: string; // e.g. "each", "pack of 6"
 }
 
+export interface ResolvedIkeaProduct {
+  name: string;
+  articleNumber: string;
+  unitPrice: number;
+  currency: string;
+  url: string;
+}
+
 export const ikeaCatalog: IkeaProduct[] = [
   // Glasses / Cups
   { name: 'GODIS glass', articleNumber: '803.607.04', category: 'glass', unitPrice: 1.99, unit: 'each' },
@@ -104,12 +112,132 @@ export function getIkeaSearchUrl(productName: string): string {
   return `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(productName)}`;
 }
 
+type IkeaSearchProduct = {
+  name?: unknown;
+  typeName?: unknown;
+  itemNo?: unknown;
+  itemNoGlobal?: unknown;
+  pipUrl?: unknown;
+  salesPrice?: {
+    numeral?: unknown;
+    currencyCode?: unknown;
+  };
+};
+
+type IkeaSearchItem = {
+  product?: IkeaSearchProduct;
+};
+
+type IkeaSearchResult = {
+  items?: IkeaSearchItem[];
+};
+
+type IkeaSearchResponse = {
+  results?: IkeaSearchResult[];
+};
+
+function getText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function normalizeToken(value: string): string[] {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function scoreText(query: string, candidate: string): number {
+  const haystack = normalizeToken(candidate);
+  const queryTokens = normalizeToken(query);
+  if (haystack.length === 0 || queryTokens.length === 0) return 0;
+
+  return queryTokens.reduce((score, token) => {
+    if (haystack.includes(token)) return score + 2;
+    if (haystack.some((candidateToken) => candidateToken.includes(token) || token.includes(candidateToken))) {
+      return score + 1;
+    }
+    return score;
+  }, 0);
+}
+
+function scoreProduct(query: string, product: IkeaSearchProduct): number {
+  return scoreText(query, `${getText(product.name) ?? ''} ${getText(product.typeName) ?? ''}`);
+}
+
+export async function resolveIkeaProduct(query: string): Promise<ResolvedIkeaProduct | null> {
+  try {
+    const response = await fetch('https://sik.search.blue.cdtapps.com/pt/en/search', {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        searchParameters: { input: query, type: 'QUERY' },
+        components: [
+          {
+            component: 'PRIMARY_AREA',
+            columns: 4,
+            types: { main: 'PRODUCT', breakouts: [] },
+            window: { offset: 0, size: 5 },
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as IkeaSearchResponse;
+    const products = (payload.results ?? [])
+      .flatMap((result) => result.items ?? [])
+      .map((item) => item.product)
+      .filter((product): product is IkeaSearchProduct => Boolean(product));
+
+    const ranked = products
+      .map((product, index) => ({ product, index, score: scoreProduct(query, product) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+
+    const bestRanked = ranked[0];
+    const best = bestRanked?.product;
+    if (!best) return null;
+    if ((bestRanked?.score ?? 0) <= 0) return null;
+
+    const name = getText(best.name);
+    const typeName = getText(best.typeName);
+    const url = getText(best.pipUrl);
+    const unitPrice = getNumber(best.salesPrice?.numeral);
+    const currency = getText(best.salesPrice?.currencyCode) ?? 'EUR';
+    const articleNumber = getText(best.itemNo) ?? getText(best.itemNoGlobal);
+
+    if (!name || !url || !unitPrice || !articleNumber) return null;
+
+    return {
+      name: typeName ? `${name} ${typeName}` : name,
+      articleNumber,
+      unitPrice,
+      currency,
+      url,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function findIkeaProductByName(name: string): IkeaProduct | undefined {
-  const lower = name.toLowerCase();
-  return ikeaCatalog.find(
-    (p) =>
-      p.name.toLowerCase() === lower ||
-      p.name.toLowerCase().includes(lower) ||
-      lower.includes(p.name.toLowerCase().split(' ')[0]!)
-  );
+  const best = ikeaCatalog
+    .map((product) => ({ product, score: scoreText(name, `${product.name} ${product.category}`) }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  return best && best.score > 0 ? best.product : undefined;
 }

@@ -66,13 +66,13 @@ export const OverlapResolutionSchema = z.object({
 export type OverlapResolution = z.infer<typeof OverlapResolutionSchema>;
 
 export const ShoppingParseSchema = z.object({
-  propertyId: z.string().nullable(),
+  propertyId: z.string().nullable().optional().default(null),
   items: z
     .array(
       z.object({
         name: z.string().min(1),
-        qty: z.number().int().positive(),
-        unitPrice: z.number().positive().optional(),
+        qty: z.coerce.number().int().positive(),
+        unitPrice: z.coerce.number().positive().nullable().optional(),
         ikeaUrl: z.string().url().optional(),
       }),
     )
@@ -82,9 +82,9 @@ export type ShoppingParse = z.infer<typeof ShoppingParseSchema>;
 
 export const PdfRequestSchema = z.object({
   type: z.enum(['CHECKIN', 'SCHEDULE', 'UNKNOWN']),
-  propertyId: z.string().nullable(),
-  reservationId: z.string().optional(),
-  referenceDate: z.string().optional(),
-  windowDays: z.number().int().positive().optional(),
+  propertyId: z.string().nullable().optional().default(null),
+  reservationId: z.string().nullable().optional(),
+  referenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  windowDays: z.coerce.number().int().min(1).max(180).nullable().optional(),
 });
 export type PdfRequest = z.infer<typeof PdfRequestSchema>;

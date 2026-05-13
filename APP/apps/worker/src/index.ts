@@ -5,6 +5,7 @@
 //
 // All three start in parallel. The process stays alive until SIGINT/SIGTERM.
 
+import './env.js';
 import { logger } from './logger.js';
 import { startQueue } from './queue.js';
 import { startTelegramBot } from './telegram/bot.js';
