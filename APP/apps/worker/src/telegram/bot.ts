@@ -4,7 +4,7 @@
 import { Bot, InputFile } from 'grammy';
 import { prisma } from '@app/db';
 import { parseShoppingMessage, parsePdfRequest } from '@app/ai';
-import { findIkeaProductByName } from '@app/ai/ikea-catalog';
+import { findIkeaProductByName, getIkeaSearchUrl } from '@app/ai/ikea-catalog';
 import { logger } from '../logger.js';
 
 let bot: Bot | null = null;
@@ -301,21 +301,14 @@ export async function startTelegramBot() {
         }
 
         for (const item of shoppingResult.items) {
-          // Use AI-provided URL, or look up in catalog, or fall back to search
-          let productUrl = item.ikeaUrl;
+          // Look up price in catalog for accuracy, use search URL for link
           let productPrice = item.unitPrice;
-
-          if (!productUrl) {
-            const catalogProduct = findIkeaProductByName(item.name);
-            if (catalogProduct) {
-              productUrl = `https://www.ikea.com/pt/en/p/-s${catalogProduct.articleNumber.replace(/\./g, '')}/`;
-              productPrice = catalogProduct.unitPrice;
-            }
+          const catalogProduct = findIkeaProductByName(item.name);
+          if (catalogProduct) {
+            productPrice = catalogProduct.unitPrice;
           }
 
-          const finalUrl =
-            productUrl ??
-            `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(item.name)}`;
+          const finalUrl = getIkeaSearchUrl(item.name);
 
           await prisma.shoppingItem.create({
             data: {
@@ -333,9 +326,7 @@ export async function startTelegramBot() {
         const itemLines = shoppingResult.items
           .map((i) => {
             const price = i.unitPrice ? ` €${i.unitPrice.toFixed(2)}` : '';
-            const url =
-              i.ikeaUrl ??
-              `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(i.name)}`;
+            const url = getIkeaSearchUrl(i.name);
             return `- ${i.qty}x ${i.name}${price}\n  ${url}`;
           })
           .join('\n');

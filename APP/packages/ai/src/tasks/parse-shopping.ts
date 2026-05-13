@@ -1,6 +1,6 @@
 import { callAiJson, cleanJson } from '../router.js';
 import { ShoppingParseSchema, type ShoppingParse } from '@app/shared';
-import { ikeaCatalog, getIkeaProductUrl } from '../ikea-catalog.js';
+import { ikeaCatalog } from '../ikea-catalog.js';
 
 export async function parseShoppingMessage(input: {
   text: string;
@@ -26,34 +26,29 @@ Rules:
    - Look up the EXACT product in the IKEA catalog below. Match the user's generic description to the closest catalog entry.
    - name: MUST be the EXACT catalog product name (e.g. "GODIS glass", not just "glass")
    - unitPrice: use the exact price from the catalog
-   - ikeaUrl: construct the product URL using the article number: https://www.ikea.com/pt/en/p/-s{articleNumberWithoutDots}/
-     Example: article 803.607.04 → https://www.ikea.com/pt/en/p/-s80360704/
 
-3. CRITICAL: Always return the ikeaUrl field with the direct product link when the product is in the catalog. NEVER omit it.
-
-4. If the user asks for something NOT in the catalog:
+3. If the user asks for something NOT in the catalog:
    - name: best IKEA product name you know
    - unitPrice: approximate price
-   - ikeaUrl: omit this field
 
-5. Examples:
+4. Examples:
    - User: "Buy for Triplex: 2x MALM bed frame"
-     → items: [{"name": "MALM bed frame", "qty": 2, "unitPrice": 149.00, "ikeaUrl": "https://www.ikea.com/pt/en/p/-s19027489/"}]
+     → items: [{"name": "MALM bed frame", "qty": 2, "unitPrice": 149.00}]
    
    - User: "Buy for Nanoush: 6 cups, 4 towels"
      → items: [
-         {"name": "GODIS glass", "qty": 6, "unitPrice": 1.99, "ikeaUrl": "https://www.ikea.com/pt/en/p/-s80360704/"},
-         {"name": "VÅGSJÖN bath towel", "qty": 4, "unitPrice": 5.99, "ikeaUrl": "https://www.ikea.com/pt/en/p/-s40488091/"}
+         {"name": "GODIS glass", "qty": 6, "unitPrice": 1.99},
+         {"name": "VÅGSJÖN bath towel", "qty": 4, "unitPrice": 5.99}
        ]
 
 Available properties:
 ${propertyList}
 
-IKEA Catalog (use these exact names, prices and article numbers):
+IKEA Catalog (use these exact names and prices):
 ${catalogLines}
 
 Respond ONLY with a JSON object matching this exact shape:
-{"propertyId": "..." | null, "items": [{"name": "...", "qty": 1, "unitPrice": 29.99, "ikeaUrl": "https://..."}]}`;
+{"propertyId": "..." | null, "items": [{"name": "...", "qty": 1, "unitPrice": 29.99}]}`;
 
   try {
     const { raw } = await callAiJson([

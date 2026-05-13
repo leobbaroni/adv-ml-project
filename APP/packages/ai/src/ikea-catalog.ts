@@ -100,9 +100,8 @@ export const ikeaCatalog: IkeaProduct[] = [
   { name: 'BASTIS lint roller', articleNumber: '304.256.54', category: 'cleaning', unitPrice: 1.99, unit: 'each' },
 ];
 
-export function getIkeaProductUrl(articleNumber: string): string {
-  const clean = articleNumber.replace(/\./g, '');
-  return `https://www.ikea.com/pt/en/p/-s${clean}/`;
+export function getIkeaSearchUrl(productName: string): string {
+  return `https://www.ikea.com/pt/en/search/?q=${encodeURIComponent(productName)}`;
 }
 
 export function findIkeaProductByName(name: string): IkeaProduct | undefined {
