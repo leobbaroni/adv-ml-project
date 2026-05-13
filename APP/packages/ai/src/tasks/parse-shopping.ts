@@ -34,8 +34,7 @@ Respond ONLY with a JSON object matching this exact shape:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: input.text },
       ],
-      // JSON mode is not supported by all providers (e.g. big-pickle).
-      // We rely on prompt instructions instead.
+      response_format: { type: 'json_object' }
     });
 
     const raw = completion.choices[0]?.message?.content ?? '{}';
