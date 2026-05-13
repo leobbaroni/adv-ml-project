@@ -351,7 +351,7 @@ The shopping flow uses AI for **natural-language understanding** and IKEA's inte
 
 ```mermaid
 flowchart LR
-    A[User: "2x MALM bed frame"] --> B[AI parseShoppingMessage]
+    A[User sends shopping message] --> B[AI parseShoppingMessage]
     B --> C[Extract qty + product name]
     C --> D{Live IKEA API?}
     D -->|Success| E[Real-time price + URL]
