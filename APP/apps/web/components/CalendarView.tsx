@@ -146,7 +146,7 @@ function MonthView({ month, reservations }: { month: Date; reservations: Reserva
               ))}
 
               {/* Reservation bars overlay */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col pt-5 px-0.5 gap-1">
+              <div className="absolute inset-0 pointer-events-none grid grid-cols-7 pt-5 px-0.5 gap-y-1">
                 {overlapping.map((r) => {
                   const s = new Date(r.startDate);
                   const e = new Date(r.endDate);
@@ -171,20 +171,16 @@ function MonthView({ month, reservations }: { month: Date; reservations: Reserva
                   return (
                     <div
                       key={r.id}
-                      className="grid grid-cols-7"
+                      className={[
+                        'pointer-events-auto h-5 px-1 rounded-sm border text-[9px] md:text-[10px] font-medium truncate flex items-center gap-1',
+                        sourceColor(r.source.label),
+                        isSuppressed ? 'opacity-40 line-through decoration-fg-muted' : '',
+                      ].join(' ')}
                       style={{ gridColumn: `${colStart} / span ${colSpan}` }}
+                      title={`${r.summary} (${r.source.label}) ${formatDate(s)} → ${formatDate(e)}`}
                     >
-                      <div
-                        className={[
-                          'pointer-events-auto h-5 px-1 rounded-sm border text-[9px] md:text-[10px] font-medium truncate flex items-center gap-1',
-                          sourceColor(r.source.label),
-                          isSuppressed ? 'opacity-40 line-through decoration-fg-muted' : '',
-                        ].join(' ')}
-                        title={`${r.summary} (${r.source.label}) ${formatDate(s)} → ${formatDate(e)}`}
-                      >
-                        <span className="truncate">{r.source.label}</span>
-                        <span className="hidden md:inline truncate opacity-80">{r.summary}</span>
-                      </div>
+                      <span className="truncate">{r.source.label}</span>
+                      <span className="hidden md:inline truncate opacity-80">{r.summary}</span>
                     </div>
                   );
                 })}

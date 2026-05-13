@@ -1,7 +1,7 @@
 // Parse an .ics string into normalized, date-only events.
 // Bad events are skipped, never thrown.
 
-import * as nodeIcal from 'node-ical';
+import nodeIcal from 'node-ical';
 
 import type { NormalizedEvent } from './index.js';
 

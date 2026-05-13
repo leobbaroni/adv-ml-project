@@ -304,12 +304,19 @@ function EditForm({
 
 function SourcesList({
   sources,
+  propertyId,
   onChanged,
 }: {
   sources: PropertyFromQuery['icalSources'];
   propertyId: string;
   onChanged: () => Promise<unknown> | unknown;
 }) {
+  const fetchAll = trpc.ical.fetchAll.useMutation({
+    onSuccess: () => {
+      void onChanged();
+    },
+  });
+
   if (sources.length === 0) {
     return (
       <div className="surface p-6 text-center mb-3">
@@ -318,11 +325,25 @@ function SourcesList({
     );
   }
   return (
-    <ul className="space-y-2 mb-3">
-      {sources.map((s) => (
-        <SourceRow key={s.id} source={s} onChanged={onChanged} />
-      ))}
-    </ul>
+    <div className="mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-fg-muted">{sources.length} source(s)</p>
+        <button
+          type="button"
+          onClick={() => fetchAll.mutate({ propertyId })}
+          disabled={fetchAll.isPending}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-btn border border-bg-border text-fg hover:bg-bg transition-colors disabled:opacity-60"
+        >
+          <RefreshCw size={14} className={fetchAll.isPending ? 'animate-spin' : ''} />
+          <span className="text-sm">Fetch all</span>
+        </button>
+      </div>
+      <ul className="space-y-2">
+        {sources.map((s) => (
+          <SourceRow key={s.id} source={s} onChanged={onChanged} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -333,12 +354,6 @@ function SourceRow({
   source: PropertyFromQuery['icalSources'][number];
   onChanged: () => Promise<unknown> | unknown;
 }) {
-  const fetchNow = trpc.ical.fetchNow.useMutation({
-    onSuccess: () => {
-      // Worker is async; refetch reflects last fetch timestamp once worker completes.
-      void onChanged();
-    },
-  });
   const del = trpc.icalSource.delete.useMutation({
     onSuccess: () => {
       void onChanged();
@@ -368,15 +383,6 @@ function SourceRow({
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => fetchNow.mutate({ sourceId: source.id })}
-          disabled={fetchNow.isPending}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-btn border border-bg-border text-fg hover:bg-bg transition-colors disabled:opacity-60"
-        >
-          <RefreshCw size={14} className={fetchNow.isPending ? 'animate-spin' : ''} />
-          <span className="text-sm">Fetch now</span>
-        </button>
         <button
           type="button"
           onClick={confirmDelete}

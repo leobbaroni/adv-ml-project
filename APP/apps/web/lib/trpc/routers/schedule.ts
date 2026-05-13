@@ -41,7 +41,10 @@ export const scheduleRouter = router({
       const cutoff = new Date(referenceDate.getTime() + input.windowDays * MS_PER_DAY);
 
       const reservations = await ctx.prisma.reservation.findMany({
-        where: { startDate: { lte: cutoff } },
+        where: {
+          startDate: { lte: cutoff },
+          NOT: { status: 'BLOCKED', suppressionReason: 'MANUAL' },
+        },
         include: {
           property: { select: { id: true, name: true } },
           source: { select: { label: true } },
@@ -89,6 +92,7 @@ export const scheduleRouter = router({
         where: {
           startDate: { lte: cutoff },
           propertyId: input.propertyId,
+          NOT: { status: 'BLOCKED', suppressionReason: 'MANUAL' },
         },
         include: {
           property: { select: { id: true, name: true } },

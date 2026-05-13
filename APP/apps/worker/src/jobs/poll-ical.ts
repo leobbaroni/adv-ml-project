@@ -1,5 +1,5 @@
-// iCal polling job. Phase 1: fetch one source, parse, upsert reservations.
-// Phase 2: overlap detection and auto-resolution.
+// iCal polling job. Clear old reservations for the source, insert fresh events,
+// then run overlap detection independently.
 
 import { resolveOverlap } from '@app/ai';
 import { prisma } from '@app/db';
@@ -69,19 +69,15 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
   const events = parseICal(result.body);
   const now = new Date();
 
+  // 1. Clear all old reservations for this source
+  const deleted = await prisma.reservation.deleteMany({
+    where: { sourceId },
+  });
+
+  // 2. Insert fresh events
   for (const event of events) {
-    await prisma.reservation.upsert({
-      where: {
-        sourceId_externalUid: { sourceId, externalUid: event.externalUid },
-      },
-      update: {
-        summary: event.summary,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        status: event.status,
-        lastSeenAt: now,
-      },
-      create: {
+    await prisma.reservation.create({
+      data: {
         propertyId: source.propertyId,
         sourceId,
         externalUid: event.externalUid,
@@ -94,7 +90,7 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
     });
   }
 
-  // Phase 2: overlap detection and auto-resolution
+  // 3. Overlap detection runs independently on the fresh data
   const reservations = await prisma.reservation.findMany({
     where: { propertyId: source.propertyId },
     include: { source: { select: { label: true } } },
@@ -200,7 +196,6 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
           action = 'AI_PROPOSED';
           aiRationale = resolution.rationale;
         }
-        // NEEDS_HUMAN falls through to the default AI_PROPOSED + fallback rationale
       } catch (err) {
         logger.warn(
           { sourceId, propertyId: source.propertyId, error: err },
@@ -244,7 +239,8 @@ export async function runPollIcal({ sourceId }: PollIcalJob): Promise<void> {
       sourceId,
       propertyId: source.propertyId,
       fetched: events.length,
-      upserted: events.length,
+      deleted: deleted.count,
+      created: events.length,
       overlaps: overlaps.length,
       etag: result.etag ?? null,
       durationMs: Date.now() - startedAt,

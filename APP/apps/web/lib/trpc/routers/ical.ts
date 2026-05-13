@@ -25,6 +25,27 @@ export const icalRouter = router({
       return { jobId: job.id ?? null };
     }),
 
+  // Enqueue poll-ical jobs for ALL sources of a property.
+  fetchAll: publicProcedure
+    .input(z.object({ propertyId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const sources = await ctx.prisma.iCalSource.findMany({
+        where: { propertyId: input.propertyId, active: true },
+      });
+      if (sources.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'No active sources' });
+
+      const queue = getQueue();
+      const jobs = await Promise.all(
+        sources.map((source) =>
+          queue.add(JobName.POLL_ICAL, { sourceId: source.id } as PollIcalJob, {
+            removeOnComplete: 100,
+            removeOnFail: 100,
+          })
+        )
+      );
+      return { count: jobs.length, jobIds: jobs.map((j) => j.id ?? null) };
+    }),
+
   // List reservations for a property (most recent first by start date).
   reservationsByProperty: publicProcedure
     .input(z.object({ propertyId: z.string() }))
