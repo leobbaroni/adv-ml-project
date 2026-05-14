@@ -168,18 +168,6 @@ The provider and model are fully swappable via environment variables. See [`docs
 - **API keys** live only in `.env` (gitignored by default). Verify `.env` remains untracked after every clone.
 - **Seed files** containing real iCal access tokens are gitignored. Confirm this before committing.
 
----
-
-## Contributing
-
-We welcome contributions. Please open an issue first to discuss what you would like to change, or submit a pull request with a clear description of the improvement.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
 **All Rights Reserved.**
